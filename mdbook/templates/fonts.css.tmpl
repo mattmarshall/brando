@@ -1,0 +1,24 @@
+/* brando brand theme for mdBook — typography.
+ *
+ * Overrides mdBook's default fonts.css to use the brand typeface (same faces as
+ * the wordmark + brandbook). mdBook references --mono-font for code; we leave
+ * that to the system monospace stack so code stays legible. */
+
+@font-face {
+  font-family: "@FONT_FAMILY@";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@MEDIUM_TTF@") format("truetype");
+}
+@font-face {
+  font-family: "@FONT_FAMILY@";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@SEMIBOLD_TTF@") format("truetype");
+}
+
+:root {
+  --fv-sans: "@FONT_FAMILY@", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}

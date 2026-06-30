@@ -1,0 +1,24 @@
+"""brando wordmark — the generic wordmark/lockup generator.
+
+The generator is brand-neutral: it outlines the brand's typeface (fontTools) and
+composites a pre-rendered mark (passed in as SVG + PNG). A brand drives it via
+brand_wordmark (defs.bzl) with a JSON config naming its word/tagline/palette/
+fonts + mark assets.
+"""
+
+load("@brando_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "wordmark",
+    srcs = ["wordmark.py"],
+    imports = ["."],
+    deps = [
+        requirement("fonttools"),
+        requirement("pillow"),
+    ],
+)
+
+exports_files(["defs.bzl"])

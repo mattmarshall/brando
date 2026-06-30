@@ -1,0 +1,48 @@
+"""brando marklib — the reusable mark-authoring Python PACKAGE.
+
+`marklib` is a Python package (imports root = brando repo root via `imports=[".."]`),
+so a brand's gen_<mark>.py / raster_<mark>.py depends on these py_libraries and
+imports:
+
+    from marklib import Canvas, Layer, geom_to_path   # @brando//marklib:marklib
+    from marklib import raster                         # @brando//marklib:raster
+    from marklib import iconcomposer                   # @brando//marklib:iconcomposer
+"""
+
+load("@brando_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Package base: the __init__ surface + geometry->layered-SVG/composite emission.
+py_library(
+    name = "marklib",
+    srcs = [
+        "__init__.py",
+        "marklib.py",
+    ],
+    imports = [".."],
+    deps = [
+        requirement("shapely"),
+        requirement("svgwrite"),
+    ],
+)
+
+# marklib.raster — hermetic Pillow rasterization helpers.
+py_library(
+    name = "raster",
+    srcs = ["raster.py"],
+    imports = [".."],
+    deps = [
+        ":marklib",
+        requirement("pillow"),
+    ],
+)
+
+# marklib.iconcomposer — Icon Composer (.icon) bundle emission from a Canvas.
+py_library(
+    name = "iconcomposer",
+    srcs = ["iconcomposer.py"],
+    imports = [".."],
+    deps = [":marklib"],
+)

@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+# The templated brand LaTeX class / beamer theme / one-pager class. A brand
+# instantiates these with its palette + fonts via brand_latex_class (defs.bzl).
+exports_files(glob(["templates/*.tmpl"]) + ["defs.bzl"])
+
+filegroup(
+    name = "templates",
+    srcs = glob(["templates/*.tmpl"]),
+)

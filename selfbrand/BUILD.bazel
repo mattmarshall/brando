@@ -1,0 +1,106 @@
+load("@brando//:defs.bzl", "brand_icons", "brand_svgs")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("@brando_pip//:requirements.bzl", "requirement")
+
+package(default_visibility = ["//visibility:public"])
+
+# brando's OWN brand (the self-brand): the GODFATHER marionette. brando dogfoods
+# its own pipeline here — the mark construction is shapely CSG and EMISSION goes
+# through @brando//marklib (the reusable layered-SVG / composite convention),
+# exactly as a third-party brand (tomato-bazel) consumes brando.
+
+# A tiny hermetic serif wordmark builder ("brando"), pure shapely — no fonts.
+py_library(
+    name = "wordmark_geom",
+    srcs = ["wordmark_geom.py"],
+    imports = ["."],
+    deps = [requirement("shapely")],
+)
+
+# The marionette mark construction (shapely CSG) + marklib emission.
+py_library(
+    name = "gen_godfather_lib",
+    srcs = ["gen_godfather.py"],
+    imports = ["."],
+    deps = [
+        "@brando//marklib",
+        requirement("shapely"),
+    ],
+)
+
+py_binary(
+    name = "gen_godfather",
+    srcs = ["gen_godfather.py"],
+    imports = ["."],
+    deps = [
+        "@brando//marklib",
+        requirement("shapely"),
+    ],
+)
+
+# Hermetic rasterizer (marklib Pillow helpers; supersampled PNGs). Emits both the
+# mark-only variants and the mark + serif "brando" wordmark lockups.
+py_binary(
+    name = "raster_godfather",
+    srcs = ["raster_godfather.py"],
+    imports = ["."],
+    deps = [
+        ":gen_godfather_lib",
+        ":wordmark_geom",
+        "@brando//marklib:raster",
+        requirement("pillow"),
+        requirement("shapely"),
+    ],
+)
+
+# brando self-brand layered SVGs. The "transparent" variant emits no bg.svg
+# layer (keep these lists in sync with gen_godfather.py VARIANTS / LAYERS).
+_BG_VARIANTS = [
+    "inkbg",
+    "inkbg_grad",
+]
+
+_LAYERS = [
+    "svg",
+    "strings.svg",
+    "bar.svg",
+    "artifacts.svg",
+]
+
+brand_svgs(
+    name = "brando_svgs",
+    generator = ":gen_godfather",
+    outs = (
+        ["brando_%s.%s" % (v, lyr) for v in _BG_VARIANTS for lyr in _LAYERS] +
+        ["brando_%s.bg.svg" % v for v in _BG_VARIANTS] +
+        ["brando_transparent.%s" % lyr for lyr in _LAYERS]
+    ),
+)
+
+# brando self-brand avatar PNGs (square, 512 + 1024), rasterized hermetically.
+# Keep variants/sizes in sync with raster_godfather.py.
+_PNG_MARK_VARIANTS = [
+    "inkbg",
+    "inkbg_grad",
+    "transparent",
+]
+
+_PNG_WORDMARK_VARIANTS = [
+    "wordmark",
+    "wordmark_transparent",
+]
+
+_PNG_SIZES = [
+    512,
+    1024,
+]
+
+brand_icons(
+    name = "brando_icons",
+    outs = [
+        "brando_%s_%d.png" % (v, s)
+        for v in (_PNG_MARK_VARIANTS + _PNG_WORDMARK_VARIANTS)
+        for s in _PNG_SIZES
+    ],
+    rasterizer = ":raster_godfather",
+)

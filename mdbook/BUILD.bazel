@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+# Templated mdBook theme overlay (custom.css / fonts.css / head.hbs). A brand
+# instantiates these with its palette + fonts + favicon via brand_mdbook_theme.
+exports_files(glob(["templates/*.tmpl"]) + ["defs.bzl"])
+
+filegroup(
+    name = "templates",
+    srcs = glob(["templates/*.tmpl"]),
+)

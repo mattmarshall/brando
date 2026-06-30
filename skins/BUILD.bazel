@@ -1,0 +1,18 @@
+"""brando skins pipeline — the reusable textpb -> binpb/json machinery.
+
+This package holds ONLY the pipeline (the textpb_to_json tool + the brand_skin
+macro in defs.bzl). A brand's own `<brand>.textpb` lives in the brand's repo and
+is compiled there with `load("@brando//skins:defs.bzl", "brand_skin")`.
+"""
+
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# textproto -> proto3-JSON (stdlib only). Referenced by brand_skin's json genrule.
+py_binary(
+    name = "textpb_to_json",
+    srcs = ["textpb_to_json.py"],
+)
+
+exports_files(["defs.bzl"])

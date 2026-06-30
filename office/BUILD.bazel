@@ -1,0 +1,25 @@
+"""brando office — generic branded .pptx / .docx generators.
+
+Brand-neutral generators (python-pptx / python-docx); a brand drives them via
+brand_office_pptx / brand_office_docx (see @brando//:defs.bzl) with a JSON config
+naming its palette/font/text + the mark/wordmark images.
+"""
+
+load("@brando_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "pptx_gen",
+    srcs = ["pptx_gen.py"],
+    imports = ["."],
+    deps = [requirement("python-pptx")],
+)
+
+py_binary(
+    name = "docx_gen",
+    srcs = ["docx_gen.py"],
+    imports = ["."],
+    deps = [requirement("python-docx")],
+)

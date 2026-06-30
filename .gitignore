@@ -1,0 +1,7 @@
+bazel-*
+.bazelrc.user
+user.bazelrc
+.DS_Store
+MODULE.bazel.lock
+__pycache__/
+*.pyc

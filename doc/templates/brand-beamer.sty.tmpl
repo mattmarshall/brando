@@ -1,0 +1,45 @@
+\ProvidesPackage{beamertheme@CLASSNAME@}[2026/06/29 brando beamer theme]
+
+\RequirePackage{fontspec}
+\RequirePackage{tikz}
+
+% Brand typeface — brand_doc stages the fonts at fonts/.
+\setsansfont{@MAINFONT@}[Path=fonts/, BoldFont=@BOLDFONT@]
+\usefonttheme{professionalfonts}
+
+% Brand palette (parameterized by brando's brand_latex_class).
+\definecolor{fvbg}{HTML}{@BG@}
+\definecolor{fvfg}{HTML}{@FG@}
+\definecolor{fvaccent}{HTML}{@ACCENT@}
+\definecolor{fvslate}{HTML}{@TERTIARY@}
+
+\setbeamercolor{background canvas}{bg=fvbg}
+\setbeamercolor{normal text}{fg=fvfg}
+\setbeamercolor{structure}{fg=fvaccent}
+\setbeamercolor{title}{fg=fvfg}
+\setbeamercolor{frametitle}{fg=fvfg}
+\setbeamercolor{itemize item}{fg=fvaccent}
+\setbeamercolor{itemize subitem}{fg=fvslate}
+\setbeamercolor{block title}{fg=fvbg, bg=fvaccent}
+\setbeamercolor{block body}{fg=fvfg, bg=fvslate!25}
+
+\setbeamerfont{frametitle}{series=\bfseries, size=\Large}
+\setbeamerfont{title}{series=\bfseries, size=\Huge}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\small\raisebox{0.15ex}{$\blacktriangleright$}}
+
+% Frame title with an accent underline.
+\setbeamertemplate{frametitle}{%
+  \vskip0.7em
+  {\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}%
+  \vskip0.15em
+  {\color{fvaccent}\rule{\linewidth}{1.2pt}}%
+}
+
+% Quiet footline: wordmark text + slide number.
+\setbeamertemplate{footline}{%
+  \hfill{\color{fvslate}\scriptsize\textbf{@WORDMARK@}\quad\insertframenumber}%
+  \hspace{1.2em}\vskip0.5em
+}
+
+\endinput

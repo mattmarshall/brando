@@ -1,0 +1,39 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesClass{@CLASSNAME@}[2026/06/29 brando brand document class]
+
+% Pass unknown options through to article.
+\DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
+\ProcessOptions\relax
+\LoadClass[11pt]{article}
+
+\RequirePackage[a4paper,margin=22mm]{geometry}
+\RequirePackage{amsmath}
+\RequirePackage{graphicx}
+\RequirePackage[dvipsnames]{xcolor}
+\RequirePackage{tikz}
+\RequirePackage{enumitem}
+\RequirePackage{array}
+\RequirePackage{parskip}
+\RequirePackage{fontspec}
+
+% Brand typeface. brand_doc stages the fonts at fonts/ relative to the
+% tectonic working directory, so this Path resolves in any consuming repo.
+\setmainfont{@MAINFONT@}[
+  Path = fonts/ ,
+  BoldFont = @BOLDFONT@ ]
+
+% Brand palette (parameterized by brando's brand_latex_class).
+\definecolor{fvbg}{HTML}{@BG@}
+\definecolor{fvfg}{HTML}{@FG@}
+\definecolor{fvaccent}{HTML}{@ACCENT@}
+\definecolor{fvtertiary}{HTML}{@TERTIARY@}
+
+% A labeled color swatch.
+\newcommand{\fvswatch}[2]{%
+  \begin{tikzpicture}[baseline]
+    \fill[#1] (0,0) rectangle (1.1,1.1);
+    \draw[black!30] (0,0) rectangle (1.1,1.1);
+  \end{tikzpicture}\hspace{2pt}\texttt{\footnotesize #2}}
+
+\pagestyle{empty}
+\endinput

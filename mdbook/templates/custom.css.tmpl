@@ -1,0 +1,146 @@
+/* brando brand theme for mdBook — colors + typography + accents.
+ *
+ * IMPORTANT: this is `additional-css`, loaded AFTER mdBook's own theme CSS, so
+ * it OVERRIDES only the brand-relevant variables and leaves every layout /
+ * typography / extra variable from mdBook's default variables.css intact. Do NOT
+ * override theme/css/variables.css — that replaces the file and drops those
+ * defaults, collapsing the layout. */
+
+/* Brand tokens (parameterized by brando's brand_mdbook_theme). */
+:root {
+  --fv-ink: @INK@;
+  --fv-ink-2: @INK2@;
+  --fv-cream: @CREAM@;
+  --fv-accent: @ACCENT@;
+  --fv-accent-2: @ACCENT2@;
+  --fv-tertiary: @TERTIARY@;
+  --fv-muted: @MUTED@;
+}
+
+/* Dark themes (navy is the default) -> brand ink/cream/accent. */
+.navy, .coal, .ayu, .rust {
+  --bg: var(--fv-ink);
+  --fg: var(--fv-cream);
+
+  --sidebar-bg: @SIDEBAR_DARK@;
+  --sidebar-fg: var(--fv-cream);
+  --sidebar-non-existant: #5b5750;
+  --sidebar-active: var(--fv-accent);
+  --sidebar-spacer: #2a2c33;
+
+  --scrollbar: #3a3d45;
+
+  --icons: #8d877b;
+  --icons-hover: var(--fv-cream);
+
+  --links: var(--fv-accent);
+
+  --inline-code-color: @CODE_FG_DARK@;
+
+  --theme-popup-bg: var(--fv-ink-2);
+  --theme-popup-border: #2a2c33;
+  --theme-hover: #23262d;
+
+  --quote-bg: #1b1e25;
+  --quote-border: #2c2f37;
+
+  --table-border-color: #2c2f37;
+  --table-header-bg: #23262d;
+  --table-alternate-bg: #191b21;
+
+  --searchbar-border-color: #2c2f37;
+  --searchbar-bg: var(--fv-ink-2);
+  --searchbar-fg: var(--fv-cream);
+  --searchbar-shadow-color: #0c0d10;
+  --search-mark-bg: var(--fv-accent-2);
+
+  --sidebar-active: var(--fv-accent);
+}
+
+/* Light theme -> brand cream field / ink text. */
+.light {
+  --bg: @LIGHT_BG@;
+  --fg: var(--fv-ink);
+
+  --sidebar-bg: #EFEADC;
+  --sidebar-fg: #2b2c30;
+  --sidebar-non-existant: #aaa498;
+  --sidebar-active: var(--fv-accent-2);
+  --sidebar-spacer: #ddd6c6;
+
+  --scrollbar: #cfc8b8;
+  --icons: #8a8478;
+  --icons-hover: var(--fv-ink);
+  --links: var(--fv-accent-2);
+  --inline-code-color: @CODE_FG_LIGHT@;
+
+  --theme-popup-bg: @LIGHT_BG@;
+  --theme-popup-border: #ddd6c6;
+  --theme-hover: #e8e2d2;
+
+  --quote-bg: #efe9da;
+  --quote-border: #ddd6c6;
+
+  --table-border-color: #ddd6c6;
+  --table-header-bg: #e8e2d2;
+  --table-alternate-bg: #efeadd;
+
+  --searchbar-border-color: #ddd6c6;
+  --searchbar-bg: @LIGHT_BG@;
+  --searchbar-fg: var(--fv-ink);
+  --searchbar-shadow-color: #cfc8b8;
+  --search-mark-bg: var(--fv-accent);
+}
+
+/* -- Typography + accent application -- */
+html,
+body,
+.menu-title {
+  font-family: var(--fv-sans);
+}
+
+.content h1,
+.content h2,
+.content h3,
+.content h4 {
+  font-family: var(--fv-sans);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* The top page title carries the brand's accent gradient. */
+.content h1 {
+  background: linear-gradient(180deg, var(--fv-accent), var(--fv-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.chapter li.chapter-item a.active {
+  color: var(--fv-accent);
+  font-weight: 600;
+}
+
+.menu-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.content a:hover {
+  color: var(--fv-accent);
+}
+
+.content code {
+  border-radius: 5px;
+}
+
+/* Opt-in CTA button (landing-style doc pages). */
+.fv-cta {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  color: @INK@ !important;
+  text-decoration: none;
+  background: linear-gradient(180deg, var(--fv-accent), var(--fv-accent-2));
+}
