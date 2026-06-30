@@ -53,6 +53,46 @@ py_binary(
     ],
 )
 
+# v2 mark construction (shapely CSG): the GODFATHER marionette now WITH THE HAND
+# gripping the control bar. Reuses gen_godfather's artifact-glyph CSG so the two
+# marks share one brand-artifact vocabulary; emission goes through @brando//marklib.
+py_binary(
+    name = "gen_godfather_v2",
+    srcs = ["gen_godfather_v2.py"],
+    imports = ["."],
+    deps = [
+        ":gen_godfather_lib",
+        "@brando//marklib",
+        requirement("shapely"),
+    ],
+)
+
+py_library(
+    name = "gen_godfather_v2_lib",
+    srcs = ["gen_godfather_v2.py"],
+    imports = ["."],
+    deps = [
+        ":gen_godfather_lib",
+        "@brando//marklib",
+        requirement("shapely"),
+    ],
+)
+
+# v2 hermetic rasterizer: composites the hand + halo layer stack. Emits the v2
+# mark-only variants and the v2 mark + serif "brando" wordmark lockups.
+py_binary(
+    name = "raster_godfather_v2",
+    srcs = ["raster_godfather_v2.py"],
+    imports = ["."],
+    deps = [
+        ":gen_godfather_v2_lib",
+        ":wordmark_geom",
+        "@brando//marklib:raster",
+        requirement("pillow"),
+        requirement("shapely"),
+    ],
+)
+
 # brando self-brand layered SVGs. The "transparent" variant emits no bg.svg
 # layer (keep these lists in sync with gen_godfather.py VARIANTS / LAYERS).
 _BG_VARIANTS = [
@@ -103,4 +143,46 @@ brand_icons(
         for s in _PNG_SIZES
     ],
     rasterizer = ":raster_godfather",
+)
+
+# ---- v2 self-brand assets (the GODFATHER marionette WITH THE HAND) ----
+# Same variant/layer/size vocabulary as v1, with a "hand" layer added and the
+# composite-only "handhalo" omitted (it is emit_file=False). Keep these lists in
+# sync with gen_godfather_v2.py VARIANTS / LAYERS and raster_godfather_v2.py.
+_V2_LAYERS = [
+    "svg",
+    "strings.svg",
+    "bar.svg",
+    "hand.svg",
+    "artifacts.svg",
+]
+
+brand_svgs(
+    name = "brando_v2_svgs",
+    generator = ":gen_godfather_v2",
+    outs = (
+        ["brando_v2_%s.%s" % (v, lyr) for v in _BG_VARIANTS for lyr in _V2_LAYERS] +
+        ["brando_v2_%s.bg.svg" % v for v in _BG_VARIANTS] +
+        ["brando_v2_transparent.%s" % lyr for lyr in _V2_LAYERS]
+    ),
+)
+
+brand_icons(
+    name = "brando_v2_icons",
+    outs = [
+        "brando_v2_%s_%d.png" % (v, s)
+        for v in (_PNG_MARK_VARIANTS + _PNG_WORDMARK_VARIANTS)
+        for s in _PNG_SIZES
+    ],
+    rasterizer = ":raster_godfather_v2",
+)
+
+# ---- brando's CANONICAL mark: the vectorized Marlon Brando portrait ----
+# A traced vector ASSET (AI stencil -> potrace -> svgo -> composite; see
+# portrait/REGEN.md), NOT a marklib mark. This is the repo/org avatar
+# (portrait/brando_avatar_1024.png, black-on-cream). The marionette targets above
+# remain as the marklib pipeline dogfood.
+filegroup(
+    name = "portrait",
+    srcs = glob(["portrait/**"]),
 )

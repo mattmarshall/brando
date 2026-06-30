@@ -125,18 +125,24 @@ def _letter_r(x0):
 
 
 def _letter_a(x0):
-    # a two-story serif 'a': a lower bowl + a right stem + a small top arch.
-    rx = BOWL_RX * 0.96
-    bcx = x0 + rx
-    bowl_cy = -X * 0.30
-    bowl = _ring(bcx, bowl_cy, rx, X * 0.30, WALL)
+    # a two-story serif 'a': a right vertical stem (full x-height) + a lower bowl
+    # tucked against it + a small hooked top entering the stem.
+    rx = BOWL_RX * 0.92
     stem_x = x0 + 2 * rx - STEM
     stem = _stem(stem_x, -X, 0.0, top_serif=False, bot_serif=True)
-    # top arch from stem over the bowl
-    arch_ry = X * 0.44
-    arch = _ring(bcx, -X + arch_ry, rx, arch_ry, WALL)
-    arch = arch.intersection(box(x0 - 0.4, -X - 0.4, stem_x + STEM, -X + arch_ry))
-    return unary_union([bowl, stem, arch]).buffer(0), (stem_x + STEM + SERIF_OUT) - x0 + 0.05
+    # lower bowl: occupies roughly the bottom 60% of the x-height band.
+    bowl_top = -X * 0.52
+    bcy = (bowl_top + 0.0) / 2.0
+    bry = (0.0 - bowl_top) / 2.0
+    bcx = x0 + rx
+    bowl = _ring(bcx, bcy, rx, bry, WALL * 0.95)
+    bowl = bowl.difference(box(stem_x, -X - 0.4, x0 + 2 * rx + 0.4, 0.4))
+    # top hook: upper-left quarter arch that flows from the stem top down-left.
+    hook_ry = X * 0.50
+    hook = _ring(bcx, -X + hook_ry, rx, hook_ry, WALL * 0.95)
+    hook = hook.intersection(box(x0 - 0.4, -X - 0.4, stem_x + STEM, -X + hook_ry))
+    hook = hook.difference(box(stem_x, -X - 0.4, x0 + 2 * rx + 0.4, 0.4))
+    return unary_union([bowl, stem, hook]).buffer(0), (stem_x + STEM + SERIF_OUT) - x0 + 0.05
 
 
 _BUILDERS = {
@@ -149,7 +155,7 @@ _BUILDERS = {
 }
 
 
-def brando_word(tracking: float = 0.050):
+def brando_word(tracking: float = 0.060):
     """Union the "brando" letters in em-space. Returns ``(geom, width)``."""
     parts = []
     x = 0.0
