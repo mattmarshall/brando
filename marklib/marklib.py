@@ -67,6 +67,36 @@ def vertical_gradient(d: "svgwrite.Drawing", gid: str, top: str, bottom: str,
     return f"url(#{gid})"
 
 
+def _norm_stops(stops) -> "list":
+    """Normalize ``stops`` to ``[(offset, color), ...]``. Accepts a flat list of
+    color strings (spaced evenly across 0..1) or a list of ``(offset, color)``."""
+    stops = list(stops)
+    if stops and isinstance(stops[0], (tuple, list)):
+        return [(float(o), c) for o, c in stops]
+    n = len(stops)
+    return [(i / (n - 1) if n > 1 else 0.0, c) for i, c in enumerate(stops)]
+
+
+def linear_gradient(d: "svgwrite.Drawing", gid: str, stops,
+                    angle_deg: float = 90.0) -> str:
+    """Define an N-stop linear gradient at ``angle_deg`` (objectBoundingBox) and
+    return a ``url(#gid)`` fill reference.
+
+    ``stops`` is a flat list of colors (even spacing) or ``(offset, color)``
+    pairs. ``angle_deg`` is the gradient-vector direction in the SVG frame (x
+    right, y down): ``90`` = top->bottom (matches ``vertical_gradient``), ``0`` =
+    left->right, ``55`` = a top-left->bottom-right diagonal. The vector is
+    centered on the bounding box, so any angle stays within 0..1 bbox space."""
+    a = math.radians(angle_deg)
+    dx, dy = math.cos(a), math.sin(a)
+    g = d.linearGradient(start=(0.5 - dx / 2, 0.5 - dy / 2),
+                         end=(0.5 + dx / 2, 0.5 + dy / 2), id=gid)
+    for off, col in _norm_stops(stops):
+        g.add_stop_color(off, col)
+    d.defs.add(g)
+    return f"url(#{gid})"
+
+
 def rounded_square(d: "svgwrite.Drawing", size: int, fill: str, radius_frac: float):
     """Add a full-canvas rounded-square rect (the standard brand background)."""
     r = radius_frac * size
@@ -79,15 +109,18 @@ class Layer:
 
     ``geom`` is a shapely geometry; ``fill`` is the solid color used for the flat
     per-layer SVG and as the default fill in a composite. ``gradient`` optionally
-    supplies (top, bottom) stops to render the shape as a vertical gradient in
-    the composite (and the rasterizer). ``blend`` / ``name`` carry through to the
-    Icon Composer manifest. ``opacity`` (0..1) is used for soft overlays such as
-    a specular highlight.
+    renders the shape as a gradient in the composite (and the rasterizer): either
+    a legacy ``(top, bottom)`` 2-tuple (vertical), or a dict
+    ``{"stops": [...], "angle": deg}`` for an N-stop gradient at any angle (see
+    ``linear_gradient``). ``blend`` / ``name`` carry through to the Icon Composer
+    manifest. ``opacity`` (0..1) is used for soft overlays such as a specular
+    highlight.
     """
     name: str
     geom: object
     fill: str
-    gradient: Optional[tuple] = None   # (top_hex, bottom_hex) or None
+    # (top, bottom) vertical 2-stop, or {"stops": [...], "angle": deg}, or None
+    gradient: Optional[object] = None
     blend: str = "normal"
     opacity: float = 1.0
     # If True, this layer is the background rounded-square (rendered as a rect,
@@ -138,8 +171,12 @@ class Canvas:
     def _add_shape(self, d, layer: Layer):
         fill = layer.fill
         if layer.gradient:
-            fill = vertical_gradient(d, f"{layer.name}grad",
-                                     layer.gradient[0], layer.gradient[1])
+            g = layer.gradient
+            if isinstance(g, dict):   # N-stop, any angle
+                fill = linear_gradient(d, f"{layer.name}grad", g["stops"],
+                                       g.get("angle", 90.0))
+            else:                     # legacy (top, bottom) vertical 2-stop
+                fill = vertical_gradient(d, f"{layer.name}grad", g[0], g[1])
         path = d.add(d.path(d=geom_to_path(layer.geom, self.tf), fill=fill))
         path.update({"fill-rule": "evenodd"})
         if layer.opacity != 1.0:
