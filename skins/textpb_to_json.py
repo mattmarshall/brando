@@ -30,6 +30,21 @@ _INT_FIELDS = {
     "unit_px",
 }
 
+# REPEATED fields in meridian.theme.v1. proto3-JSON represents a repeated field
+# as an ARRAY — always, even at length 1 — and a decoder that expects an array
+# rejects a bare object. The parser cannot infer arity from the textproto alone
+# (`fonts { ... }` written once looks exactly like a singular message), so the
+# repeated fields are named here, the same way _INT_FIELDS names the numerics.
+#
+# Getting this wrong is silent: before `fonts` every Theme field was singular,
+# so repeated occurrences simply overwrote each other and a skin declaring three
+# font sources emitted only the last one. The binpb was always correct — protoc
+# handles repetition — so the two artifacts disagreed, and only the JSON twin,
+# which is what the WEB consumes, lost data.
+_REPEATED_FIELDS = {
+    "fonts",
+}
+
 _TOKEN = re.compile(
     r"""
       (?P<comment>\#[^\n]*)               # comment to end of line
@@ -48,6 +63,21 @@ def _unescape(quoted: str) -> str:
     # Strip the surrounding quotes, then unescape \" and \\.
     inner = quoted[1:-1]
     return inner.replace('\\"', '"').replace("\\\\", "\\")
+
+
+def _put(parent: dict, key: str, value: object) -> None:
+    """Assign `key`, appending rather than overwriting for repeated fields."""
+    if key in _REPEATED_FIELDS:
+        parent.setdefault(key, []).append(value)
+    elif key in parent:
+        # A non-repeated field written twice is a schema slip, not something to
+        # silently resolve by keeping whichever came last.
+        raise ValueError(
+            f"field {key!r} appears more than once but is not in _REPEATED_FIELDS; "
+            f"add it there if the schema made it repeated"
+        )
+    else:
+        parent[key] = value
 
 
 def parse(text: str):
@@ -71,7 +101,7 @@ def parse(text: str):
             if pending_key is None:
                 raise ValueError("'{' without a preceding field name")
             child: dict = {}
-            stack[-1][pending_key] = child
+            _put(stack[-1], pending_key, child)
             stack.append(child)
             pending_key = None
             continue
@@ -90,7 +120,7 @@ def parse(text: str):
                 if pending_key not in _INT_FIELDS:
                     # Defensive: a numeric on a non-int field is a schema slip.
                     raise ValueError(f"numeric value on string field {pending_key!r}")
-            stack[-1][pending_key] = value
+            _put(stack[-1], pending_key, value)
             pending_key = None
             continue
 

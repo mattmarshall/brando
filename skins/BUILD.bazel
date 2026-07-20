@@ -5,7 +5,7 @@ macro in defs.bzl). A brand's own `<brand>.textpb` lives in the brand's repo and
 is compiled there with `load("@brando//skins:defs.bzl", "brand_skin")`.
 """
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +13,16 @@ package(default_visibility = ["//visibility:public"])
 py_binary(
     name = "textpb_to_json",
     srcs = ["textpb_to_json.py"],
+)
+
+# Regression gate for the converter. The repeated-field case is the reason this
+# exists: a repeated field that overwrote itself produced a JSON twin that
+# silently disagreed with the protoc-produced binpb, and nothing failed.
+py_test(
+    name = "textpb_to_json_test",
+    size = "small",
+    srcs = ["textpb_to_json_test.py"],
+    data = ["textpb_to_json.py"],
 )
 
 exports_files(["defs.bzl"])
