@@ -1,0 +1,53 @@
+"""brando.v1 — a brand as data.
+
+Declared with `aip_proto_library` and gated by `aip_proto_lint`. rules_aip is a
+LINTING toolkit, not a codegen one — its README says stub generation is
+intentionally out of scope — so this package produces a `proto_library` and an
+api-linter test, and any language bindings are a separate, explicit choice.
+
+`strip_import_prefix = "/proto"` makes the import path match the proto package,
+which is what lets AIP-191 pass unwaived.
+"""
+
+load("@rules_aip//aip:defs.bzl", "AIP_WKT_DEPS", "aip_proto_library", "aip_proto_lint")
+
+package(default_visibility = ["//visibility:public"])
+
+aip_proto_library(
+    name = "brand_proto",
+    srcs = ["brand.proto"],
+    strip_import_prefix = "/proto",
+    deps = AIP_WKT_DEPS + ["@meridian_schemas//proto:theme_proto"],
+)
+
+aip_proto_lint(
+    name = "brand_proto_aip_lint",
+    proto = ":brand_proto",
+    # These are the waivers an INTERNAL data contract earns; each one is a rule
+    # about resource-oriented RPC surfaces, and this file declares no service.
+    disable_rules = [
+        # BrandSpec/BrandPackage are message types in an artifact format, not
+        # AIP-123 resources with names and Get/List methods.
+        "core::0123::resource-annotation",
+        # AIP-192 wants a comment on every symbol; the ones here carry rationale
+        # rather than restating the field name, and several fields are self-
+        # evident members of an enum whose block comment explains the set.
+        "core::0192::has-comments",
+        # AIP-122 reserves `name` for resource names and so discourages the
+        # `_name` suffix. `display_name` is the field meridian.theme.v1.Theme
+        # already uses for exactly this, and BrandSpec mirrors that contract on
+        # purpose — renaming it here would create the divergence this format
+        # exists to prevent.
+        "core::0122::name-suffix",
+        # AIP-215 discourages referencing a type from another package. Reusing
+        # `meridian.theme.v1.Theme` rather than redeclaring it is the central
+        # design decision of this file: a second, subtly different Theme is the
+        # precise failure mode brando 0.2.0 spent its release removing.
+        "core::0215::foreign-type-reference",
+    ],
+)
+
+test_suite(
+    name = "aip_lint",
+    tests = [":brand_proto_aip_lint"],
+)

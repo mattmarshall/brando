@@ -1,0 +1,285 @@
+// brando.v1 — a brand as data.
+//
+// TWO MESSAGES, AND THE SPLIT BETWEEN THEM IS THE POINT.
+//
+// `BrandSpec` is the INPUT: what a person (or, later, a model) authors. It is the
+// single place a brand states its identity, and everything else is derived from
+// it. `BrandPackage` is the OUTPUT: a built brand, with every artifact named,
+// content-addressed, and traceable back to the spec digest it came from.
+//
+// WHY THIS EXISTS AT ALL. Today a repo that merely WEARS a brand must also be a
+// full Bazel brand PIPELINE — shapely, Pillow, a pip lock, generators. That is why
+// meridian-playground/tools/regen_skins.sh hardcodes four absolute local repo
+// paths and runs brando's converter outside Bazel to get theme JSON, and why three
+// separate TypeScript codebases still hardcode the palette. Splitting "producing a
+// brand" from "wearing one" is the whole job of the `.brando` archive: a consumer
+// takes the package and needs none of the machinery that made it.
+//
+// The theme is NOT redefined here. `meridian.theme.v1.Theme` is already the
+// fleet's contract for what a brand looks like at runtime, and a second, subtly
+// different copy of it is precisely the kind of drift this file exists to end.
+syntax = "proto3";
+
+package brando.v1;
+
+import "google/protobuf/timestamp.proto";
+// NB: `proto/theme.proto`, not `meridian/theme/v1/theme.proto`. meridian_schemas
+// declares its theme_proto with no strip_import_prefix, so its import path is its
+// repo-relative one and does not match its proto package. That is upstream's
+// AIP-191 gap, not something to paper over here with a second copy of the file.
+import "proto/theme.proto";
+
+option java_multiple_files = true;
+option java_package = "dev.brando.v1";
+option java_outer_classname = "BrandProto";
+
+// Everything a brand states about itself. The one authored artifact.
+message BrandSpec {
+  // Stable identifier, lowercase, e.g. "leangres". Also the archive's basename.
+  string id = 1;
+
+  // Human-facing name, e.g. "tomato-bazel". May differ from `id` in case and
+  // punctuation; renderers show this, never `id`.
+  string display_name = 2;
+
+  Identity identity = 3;
+
+  // The runtime look, in the fleet's existing contract. Reused, not re-declared.
+  meridian.theme.v1.Theme theme = 4;
+
+  MarkSpec mark = 5;
+
+  // Faces this brand ships, with provenance. A stack in `theme.typography` is a
+  // list of NAMES; without a source the browser silently substitutes and the
+  // brand is quietly not applied — a failure invisible in review and in
+  // screenshots taken on a designer's machine.
+  repeated FontSource fonts = 6;
+
+  // Which artifacts a complete build of this brand produces.
+  Catalog catalog = 7;
+
+  Copy copy = 8;
+}
+
+// What the brand MEANS, as opposed to what it looks like. Carried because a
+// brandbook is the thing that settles arguments a palette cannot: whether a
+// colour may be used as text, what the mark may sit on, how the brand speaks.
+message Identity {
+  // The legal entity, when it differs from `display_name`.
+  string legal_name = 1;
+
+  // One line. Appears in lockups and office templates.
+  string tagline = 2;
+
+  // What the brand is for, in a sentence or two.
+  string positioning = 3;
+
+  // How the mark is meant to be read — aion's glyph is deliberately four
+  // readings at once, and losing that is losing the brand.
+  string story = 4;
+
+  // Voice attributes, e.g. "helpful", "expert not snobby".
+  repeated string voice = 5;
+
+  // Rules that constrain USE rather than appearance, e.g. "the light-blue logo
+  // goes on white only". These are the statements a contrast checker cannot
+  // derive and a designer must not have to remember.
+  repeated string usage_rules = 6;
+
+  // Where the authoritative brandbook lives, if there is one.
+  string brandbook_uri = 7;
+}
+
+// How the mark is generated. brando does NOT model geometry: mark construction is
+// genuinely per-brand — aion's ring/bar/stem, fastverk's phi-triangle, meridian's
+// refracted beam — and roughly 60% of a generator is legitimately its own code.
+// What is shared is which variants and layers exist, and at what sizes.
+message MarkSpec {
+  // Bazel label of the brand's generator, e.g. "//gen:gen_mark".
+  string generator = 1;
+
+  // Variant names the generator emits, e.g. "mark", "icon".
+  repeated string variants = 2;
+
+  // Layer suffixes per variant, e.g. "svg", "glyph.svg", "bg.svg", "flat.svg".
+  repeated string layers = 3;
+
+  // Raster sizes in px.
+  repeated int32 sizes = 4;
+
+  // Variants that additionally get .icns and .ico. A list rather than a bool
+  // because brands genuinely differ about which icon a desktop installs.
+  repeated string packed = 5;
+
+  // Optical padding as a fraction of the canvas, per side (marklib.fit's `pad`).
+  float pad = 6;
+
+  // Supersample factor for rasterization.
+  int32 supersample = 7;
+}
+
+// An obtainable font file. Mirrors meridian.theme.v1.FontSource, plus the
+// provenance a vendored binary needs to remain a licence question anyone can
+// answer later.
+message FontSource {
+  // MUST match how the face is named in the theme's typography stacks. This is
+  // the join key between the stack and the file.
+  string family = 1;
+  string src_uri = 2;
+  // CSS font-weight: a single weight ("400") or a variable range ("100 900").
+  string weight = 3;
+  // "normal" (default when empty) or "italic".
+  string style = 4;
+  string unicode_range = 5;
+  // CSS font-display; "swap" when empty.
+  string display = 6;
+
+  // Provenance. A vendored binary with no sha256 and no licence is a question
+  // nobody can answer six months on.
+  string sha256 = 7;
+  string license = 8;
+  string upstream_uri = 9;
+}
+
+// WHICH artifacts a complete build produces. This is the formalization: without
+// it, "what does a brand include" is whatever a given repo happened to wire up —
+// which is how one brand came to produce 17 artifact types and another 2.
+message Catalog {
+  repeated ArtifactKind kinds = 1;
+
+  // Extra artifacts that are real but not in the standard vocabulary.
+  repeated string custom = 2;
+}
+
+
+// Prose the brand supplies, so brando's office and brandbook templates stop
+// carrying hardcoded English. pptx_gen.py currently ships "The mark", "Light &
+// dark" and "Brand deck · generated from one parametric source" as literals in
+// every brand's deck.
+message Copy {
+  string deck_title = 1;
+  string deck_subtitle = 2;
+  string mark_section_title = 3;
+  string color_section_title = 4;
+  string type_section_title = 5;
+  string closing = 6;
+
+  // Free-form named strings for a brand's own templates.
+  map<string, string> extra = 7;
+}
+
+// A BUILT brand: the manifest inside a `.brando` archive.
+message BrandPackage {
+  // The spec this was built from, carried whole so a package is self-describing
+  // and a consumer never has to go find the repo it came from.
+  BrandSpec spec = 1;
+
+  repeated Asset assets = 2;
+
+  Provenance provenance = 3;
+}
+
+// One artifact in the archive.
+message Asset {
+  // Logical name a consumer asks for, e.g. "theme.json", "mark/aion_mark.svg".
+  // Stable across rebuilds; this is what `rules_brand` exposes as a target.
+  string name = 1;
+
+  // Path INSIDE the archive. Content-addressed ("assets/<sha256>"), so identical
+  // bytes appear once however many logical names point at them.
+  string path = 2;
+
+  string media_type = 3;
+  int64 size_bytes = 4;
+  string sha256 = 5;
+
+  ArtifactKind kind = 6;
+
+  // For per-variant/size artifacts, so a consumer can ask for "the 512px icon"
+  // without parsing filenames.
+  string variant = 7;
+  int32 size_px = 8;
+  // "light" | "dark" where an artifact is mode-specific.
+  string mode = 9;
+}
+
+// Where a package came from. Without this a `.brando` is a bag of files with no
+// way to tell which commit or which brando produced it.
+message Provenance {
+  // brando's own module version, e.g. "0.2.0".
+  string brando_version = 1;
+
+  // sha256 of the serialized BrandSpec. Two packages with the same digest were
+  // built from the same stated brand.
+  string spec_digest = 2;
+
+  // Source repo and commit, when known.
+  string source_repo = 3;
+  string source_commit = 4;
+
+  google.protobuf.Timestamp build_time = 5;
+
+  // Contrast findings at build time, recorded rather than merely printed — a
+  // package that shipped with a known-unreadable pair should say so.
+  repeated ContrastFinding contrast = 6;
+}
+
+message ContrastFinding {
+  // "light" | "dark".
+  string mode = 1;
+  string foreground_role = 2;
+  string background_role = 3;
+  float ratio = 4;
+  float minimum = 5;
+  Severity severity = 6;
+
+  enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    // The pair's usage is unambiguous and it is unreadable.
+    SEVERITY_ERROR = 1;
+    // The role is rendered more than one way; a human decides.
+    SEVERITY_WARN = 2;
+  }
+}
+
+enum ArtifactKind {
+  ARTIFACT_KIND_UNSPECIFIED = 0;
+
+  // Layered mark SVGs, per variant x layer.
+  ARTIFACT_KIND_MARK_SVG = 1;
+  // Raster marks at the catalog's sizes.
+  ARTIFACT_KIND_MARK_PNG = 2;
+  // .icns / .ico bundles.
+  ARTIFACT_KIND_ICON_PACKED = 3;
+  // Icon Composer .icon bundle.
+  ARTIFACT_KIND_ICON_COMPOSER = 4;
+  // favicon.ico + favicon.svg + apple-touch + maskable + webmanifest.
+  ARTIFACT_KIND_FAVICON = 5;
+
+  ARTIFACT_KIND_WORDMARK = 6;
+  ARTIFACT_KIND_LOCKUP = 7;
+
+  // meridian.theme.v1 wire forms.
+  ARTIFACT_KIND_THEME_BINPB = 8;
+  ARTIFACT_KIND_THEME_JSON = 9;
+  // CSS custom properties.
+  ARTIFACT_KIND_THEME_CSS = 10;
+
+  ARTIFACT_KIND_MDBOOK_THEME = 11;
+  ARTIFACT_KIND_LATEX_CLASS = 12;
+  ARTIFACT_KIND_BRANDBOOK_PDF = 13;
+  ARTIFACT_KIND_OFFICE_PPTX = 14;
+  ARTIFACT_KIND_OFFICE_DOCX = 15;
+
+  // Construction / grid / clearspace plates.
+  ARTIFACT_KIND_GUIDELINE_DIAGRAMS = 16;
+  // The contrast matrix, as a rendered artifact rather than a build log.
+  ARTIFACT_KIND_CONTRAST_MATRIX = 17;
+
+  // ANSI palette + terminal themes — the TUI renderer's half of the contract.
+  ARTIFACT_KIND_TERMINAL_THEME = 18;
+  // OG card, avatar, social preview.
+  ARTIFACT_KIND_SOCIAL = 19;
+
+  ARTIFACT_KIND_FONTS = 20;
+}

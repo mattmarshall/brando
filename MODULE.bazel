@@ -52,6 +52,18 @@ bazel_dep(name = "rules_tectonic", version = "0.2.0")
 bazel_dep(name = "meridian_schemas", version = "0.17.0")
 bazel_dep(name = "protobuf", version = "33.4")
 
+# rules_aip — AIP proto linting for brando.v1 (the .brando package format). It is
+# a LINTING toolkit only; its README puts stub generation explicitly out of scope,
+# so this brings an api-linter test and the googleapis dep groups, nothing more.
+# >= 0.3.0 takes protoc from the proto toolchain rather than naming
+# @protobuf//:protoc directly, which is what keeps a C++ toolchain out of repos
+# that have no C++ in them.
+bazel_dep(name = "rules_aip", version = "0.3.0")
+
+# The google.api.* annotation protos aip_proto_library bundles. Via bazel_dep, so
+# nothing is vendored into the graph — the same pin governor and meridian-k8s use.
+bazel_dep(name = "googleapis", version = "0.0.0-20260422-20ac242a")
+
 # ─── tectonic (brand PDFs) ──────────────────────────────────────────
 tectonic = use_extension("@rules_tectonic//tectonic:extensions.bzl", "tectonic")
 use_repo(tectonic, "tectonic")
