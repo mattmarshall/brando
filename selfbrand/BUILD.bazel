@@ -1,3 +1,4 @@
+load("//:version.bzl", "VERSION")
 load("@brando//:defs.bzl", "brand_icons", "brand_package", "brand_svgs", "brand_wordmark_glyphs")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@brando_pip//:requirements.bzl", "requirement")
@@ -291,7 +292,7 @@ brand_package(
             "label": "//fonts:OFL.txt",
         },
     },
-    brando_version = "0.2.0",
+    brando_version = VERSION,
     source_repo = "mattmarshall/brando",
     spec = "brando.textproto",
 )

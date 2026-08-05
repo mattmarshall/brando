@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.3.0 — a brand becomes a package
+
+Additive. Every 0.2.0 rule keeps its behavior; the new surface is `brand_package`
+and the `brando.v1` protos it encodes.
+
+### Added
+
+* **`brand_package` — the `.brando` archive.** One file a consumer can take
+  instead of a pipeline: a zip holding `brand.binpb` (a `brando.v1.BrandPackage`),
+  `brand.json` (the same manifest, for Starlark) and every artifact under a
+  content-addressed path. Identical bytes land once however many logical names
+  point at them — a brand's flat and mono marks are routinely the same file — and
+  a consumer asks for the name, never the hash. Byte-reproducible, with a test.
+
+  It replaces two hand-assembled asset zips (`aion-brand-assets.zip`,
+  `tbzl-brand-assets.zip`) with two different layouts, two naming conventions and
+  no manifest in either. Four of the six brands had no bundle at all. A zip with
+  no manifest is a bag of files: you can extract it, but you cannot ask it for
+  "the favicon" without already knowing what this brand called that.
+
+  The manifest is **protoc-validated, not merely produced** — `pack_brand.py` is
+  stdlib and emits a textproto, and `protoc --encode` rejects anything that does
+  not match `brando.v1`. That keeps the protobuf wheel out of a brand repo's
+  graph, the property `skin_json` had to be rebuilt to preserve.
+
+* **`brando.v1`** (`proto/brando/v1/brand.proto`), AIP-linted via `rules_aip`.
+  `BrandSpec` is what a human or a model authors; `BrandPackage` is the manifest
+  inside an archive. It **reuses `meridian.theme.v1.Theme`** rather than
+  redeclaring the palette contract. `Catalog` and `ArtifactKind` are the
+  formalization: "what does a complete brand include" stops being "whatever
+  fastverk happened to wire up".
+
+* **brando has a skin** (`//skins:brando`). It shipped a mark, a wordmark and an
+  entire brand pipeline for three releases with no skin of its own, which is a
+  poor advertisement for a tool whose argument is that one source drives
+  everything. Cream on ink; `accent` is a value step rather than a hue, because
+  the identity is monochrome on purpose. Zero unreadable pairs under the gate.
+
+* **`//console`** — a browsable catalog rendering every brand from the
+  `<brand>.json` each `brand_skin` already emits, dogfooding `marklib.tokens` for
+  the CSS and `marklib.palette` for the contrast report. Each card wears its own
+  skin via scoped custom properties, so the brands read as different brands
+  rather than six identically-styled swatch grids.
+
+* **Fixtures for `brand_doc` and `brand_latex_class`.** Neither had an in-repo
+  caller — the same condition that let `brand_skin` mis-resolve its schema and
+  `brand_iconcomposer` ship a `KeyError` for two releases. There is now one
+  fixture **per emitted file**: the article class and the beamer theme, because
+  0.2.0's rename broke a call site the single article fixture never touched.
+
+### Fixed
+
+* **`skin_json` did not implement string concatenation.** Adjacent string
+  literals join, as in C — how every textproto wraps prose. Neither this parser
+  nor the tokenizer it replaced handled it, and nothing noticed, because no
+  *skin* has a field long enough to wrap. A `BrandSpec` does. The failure is
+  badly localized: the second literal reads as a scalar with no field name, so
+  the error names a position several lines past the real one.
+* **Enums could not be parsed.** A textproto writes an enum as a bare identifier,
+  which lexes exactly like a field name; only the schema can distinguish them.
+* **int64 is now its own schema kind.** It is the one type whose two encodings
+  genuinely disagree: bare in a textproto, a **string** in proto3-JSON, because
+  JSON numbers cannot carry the full int64 range. `theme.proto` has no 64-bit
+  field, so this could not surface before `size_bytes`.
+* **`marklib` imported eagerly**, so `import marklib.tokens` pulled `svgwrite`
+  despite `tokens` and `palette` being stdlib-only by design. The tests never
+  caught it — they run under Bazel, where every wheel is present. Now lazy
+  (PEP 562), asserted in a subprocess.
+
+### Changed
+
+* **`meridian_schemas` 0.17.0 → 0.24.0.** `Palette.warning` and `Palette.info`
+  now **encode for the first time in the fleet**. Zero of six skins set them, and
+  that was not neglect: no skin *could*. The fields arrive in 0.20.0, and
+  0.20.0–0.24.0 were tagged upstream but never published — `rels` derived the
+  registry directory from the repo basename rather than the module's declared
+  name, so five releases wrote to a path Bazel never reads.
+
 ## 0.2.0 — the consolidation release
 
 Breaking for `brand_mdbook_theme` and `brand_latex_class`; every other rule keeps

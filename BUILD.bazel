@@ -1,6 +1,28 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "requirements.txt",
     "defs.bzl",
 ])
+
+exports_files([
+    "MODULE.bazel",
+    "requirements.txt",
+    "version.bzl",
+])
+
+py_test(
+    name = "version_test",
+    size = "small",
+    srcs = ["version_test.py"],
+    data = [
+        "MODULE.bazel",
+        "version.bzl",
+    ],
+    env = {
+        "MODULE_BAZEL": "$(rootpath MODULE.bazel)",
+        "VERSION_BZL": "$(rootpath version.bzl)",
+    },
+)

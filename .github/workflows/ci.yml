@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A merge burst must not stack runs on top of each other.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bazel test //... --keep_going
+
+  # brando's own rules are exercised in-repo (//skins:fixture, //doc:fixture_class,
+  # //mdbook:fixture_theme, //selfbrand). What no in-repo test can cover is the
+  # CONSUMER's view: brando's rules run inside brand repos that need not have
+  # rules_python at all, and a wheel dependency reaching skin_json fails those at
+  # analysis. That regression shipped once and had to be undone; this catches it.
+  zero_dependency_consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: a module that declares nothing but brando
+        run: |
+          set -eux
+          d=$(mktemp -d)
+          cp -r . "$d/brando"
+          mkdir -p "$d/scratch/skins"
+          cd "$d/scratch"
+          cat > MODULE.bazel <<'MOD'
+          module(name = "scratch", version = "0.0.0")
+          bazel_dep(name = "brando", version = "0.3.0")
+          local_path_override(module_name = "brando", path = "../brando")
+          MOD
+          cp "$d/brando/.bazelrc" .bazelrc
+          cp "$d/brando/skins/testdata/fixture.textpb" skins/scratch.textpb
+          cat > skins/BUILD.bazel <<'BLD'
+          load("@brando//skins:defs.bzl", "brand_skin")
+          brand_skin(name = "scratch", textpb = "scratch.textpb")
+          BLD
+          bazel build //skins:scratch
