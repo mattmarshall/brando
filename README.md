@@ -13,6 +13,9 @@ brand repo supplies only its own Spec / tokens / content and shares one hermetic
 Consumed by `savvifi/aion//brand`, `fastverk/brand`, `tomato-bazel/brand`,
 `meridian-ux/brand` and `savvifi/graph//brand`.
 
+**[The brand catalog](https://mattmarshall.github.io/brando/)** — every brand brando builds, rendered from the same `<brand>.json` each `brand_skin` emits,
+with its contrast report. One self-contained page; no external requests.
+
 ## Use it
 
 ```starlark
