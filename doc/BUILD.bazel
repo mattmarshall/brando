@@ -47,3 +47,13 @@ brand_doc(
     main = "testdata/fixture.tex",
     resources = ":fixture_resources",
 )
+
+# The BEAMER half of the dogfood. //doc:fixture_doc compiles the article class and
+# caught one half of 0.2.0's rename; the beamer theme's colours went unexercised
+# and broke a consumer with "Undefined color `fvslate'". A rule that emits three
+# files needs a fixture per file.
+brand_doc(
+    name = "fixture_deck",
+    main = "testdata/fixture_deck.tex",
+    resources = ":fixture_resources",
+)

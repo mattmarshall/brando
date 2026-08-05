@@ -1,0 +1,44 @@
+% brando's dogfood of the BEAMER theme.
+%
+% //doc:fixture_doc compiles the article class and caught one half of 0.2.0's
+% macro rename. It did not catch the other half, and fastverk's CI did:
+%
+%     deck.tex:15: Package xcolor Error: Undefined color `fvslate'.
+%
+% Two lessons, both narrow enough to be worth writing down.
+%
+% First, `fvslate` and `fvtertiary` were the SAME token under two names — the
+% article class called it tertiary, the beamer theme called it slate — so
+% unifying them to `brandmuted` broke a call site the article fixture never
+% touches. A rule that emits three files needs a fixture per file, not one.
+%
+% Second, my first sweep grepped for `\fv[a-z]*` and so found the MACROS
+% (\fvswatch, \fvheader) but not the COLOUR NAMES, which appear unprefixed inside
+% braces: \color{fvslate}, text=fvfg. Grepping for the sigil misses half the
+% surface; grep for the string.
+\documentclass{beamer}
+\usetheme{brandofixture}
+
+\begin{document}
+
+\begin{frame}{Colour}
+  % Every colour the theme defines, used the way a real deck uses them: as a
+  % colour NAME inside braces, which is the form the first sweep missed.
+  {\color{brandbg}bg}\quad
+  {\color{brandfg}fg}\quad
+  {\color{brandaccent}accent}\quad
+  {\color{brandmuted}muted}
+\end{frame}
+
+\begin{frame}{Structure}
+  \begin{itemize}
+    \item An itemize item, which the theme colours from \texttt{brandaccent}.
+    \item A second, whose subitem marker uses \texttt{brandmuted}.
+  \end{itemize}
+  \begin{block}{A block}
+    Block title and body, which is where the theme's \texttt{brandmuted!25} fill
+    is exercised — a shade of a colour, so a renamed colour fails here too.
+  \end{block}
+\end{frame}
+
+\end{document}
