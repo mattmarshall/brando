@@ -10,15 +10,24 @@ imports:
 """
 
 load("@brando_pip//:requirements.bzl", "requirement")
-load("@rules_python//python:defs.bzl", "py_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
-# Package base: the __init__ surface + geometry->layered-SVG/composite emission.
+# Package base: the __init__ surface + geometry->layered-SVG/composite emission
+# + fit (the model->pixel transform every brand used to re-derive)
+# + emit (reads the variant/layer/size lists the brand_* rules pass down).
+#
+# fit.py is in the base rather than its own target on purpose: __init__ re-exports
+# it, so every importer of `marklib` already pulls it, and a separate target would
+# only create a way to depend on the package without the transform in it. It has
+# no third-party deps of its own.
 py_library(
     name = "marklib",
     srcs = [
         "__init__.py",
+        "emit.py",
+        "fit.py",
         "marklib.py",
     ],
     imports = [".."],
@@ -26,6 +35,38 @@ py_library(
         requirement("shapely"),
         requirement("svgwrite"),
     ],
+)
+
+# marklib.tokens — Theme JSON -> CSS custom properties. Stdlib only, and
+# deliberately NOT dependent on :marklib: a consumer that only wants a stylesheet
+# out of a skin should not have to pull shapely and svgwrite to get one.
+# marklib.palette — colour arithmetic + the WCAG contrast gate. Stdlib only, and
+# independent of :marklib for the same reason as :tokens — checking a palette
+# should not require the geometry stack.
+py_library(
+    name = "palette",
+    srcs = ["palette.py"],
+    imports = [".."],
+)
+
+py_binary(
+    name = "contrast_check",
+    srcs = ["palette.py"],
+    imports = [".."],
+    main = "palette.py",
+)
+
+py_library(
+    name = "tokens",
+    srcs = ["tokens.py"],
+    imports = [".."],
+)
+
+py_binary(
+    name = "theme_css",
+    srcs = ["tokens.py"],
+    imports = [".."],
+    main = "tokens.py",
 )
 
 # marklib.raster — hermetic Pillow rasterization helpers.
@@ -40,10 +81,128 @@ py_library(
     ],
 )
 
+# marklib.wordmark — letter placement, box fitting and lockup composition, for a
+# brand whose letterforms are CONSTRUCTED rather than set in a typeface.
+py_library(
+    name = "wordmark",
+    srcs = ["wordmark.py"],
+    imports = [".."],
+    deps = [
+        ":marklib",
+        requirement("shapely"),
+        requirement("svgwrite"),
+    ],
+)
+
+# marklib.diagrams — brandbook guideline plates (construction / grid / clearspace).
+# Only fastverk had these; the layout logic was never fastverk's.
+py_library(
+    name = "diagrams",
+    srcs = ["diagrams.py"],
+    imports = [".."],
+    deps = [requirement("pillow")],
+)
+
 # marklib.iconcomposer — Icon Composer (.icon) bundle emission from a Canvas.
 py_library(
     name = "iconcomposer",
     srcs = ["iconcomposer.py"],
     imports = [".."],
     deps = [":marklib"],
+)
+
+# ── tests ────────────────────────────────────────────────────────────────────
+# marklib had NO tests before 0.2.0. Not one — including for the SVG/raster
+# gradient parity that 0.1.0 introduced, which is the one place a silent visual
+# divergence can hide. These are the gates on the code lifted out of the brands.
+
+py_test(
+    name = "fit_test",
+    size = "small",
+    srcs = ["fit_test.py"],
+    imports = [".."],
+    deps = [":marklib"],
+)
+
+py_test(
+    name = "raster_test",
+    size = "small",
+    srcs = ["raster_test.py"],
+    imports = [".."],
+    deps = [":raster"],
+)
+
+py_test(
+    name = "diagrams_test",
+    size = "small",
+    srcs = ["diagrams_test.py"],
+    imports = [".."],
+    deps = [
+        ":diagrams",
+        ":marklib",
+    ],
+)
+
+py_test(
+    name = "iconcomposer_test",
+    size = "small",
+    srcs = ["iconcomposer_test.py"],
+    imports = [".."],
+    deps = [":iconcomposer"],
+)
+
+py_test(
+    name = "palette_test",
+    size = "small",
+    srcs = ["palette_test.py"],
+    imports = [".."],
+    deps = [":palette"],
+)
+
+py_test(
+    name = "tokens_test",
+    size = "small",
+    srcs = ["tokens_test.py"],
+    imports = [".."],
+    deps = [":tokens"],
+)
+
+py_test(
+    name = "surface_test",
+    size = "small",
+    srcs = ["surface_test.py"],
+    imports = [".."],
+    deps = [
+        ":marklib",
+        ":palette",
+        ":tokens",
+    ],
+)
+
+py_test(
+    name = "emit_test",
+    size = "small",
+    srcs = ["emit_test.py"],
+    imports = [".."],
+    deps = [":marklib"],
+)
+
+py_test(
+    name = "wordmark_test",
+    size = "small",
+    srcs = ["wordmark_test.py"],
+    imports = [".."],
+    deps = [":wordmark"],
+)
+
+# The SVG and raster implementations of linear_gradient must agree. Nothing
+# compared them before 0.2.0, and a divergence between the two is invisible:
+# no crash, no failed build, just an app icon whose gradient runs the other way
+# from the website's.
+py_test(
+    name = "gradient_parity_test",
+    size = "small",
+    srcs = ["gradient_parity_test.py"],
+    imports = [".."],
+    deps = [":raster"],
 )

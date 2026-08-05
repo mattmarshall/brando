@@ -39,6 +39,7 @@ from dataclasses import dataclass, field
 from shapely.geometry import LineString, Polygon, box
 from shapely.ops import unary_union
 
+from marklib import emit
 from marklib import Canvas, geom_to_path
 
 # Reuse v1's artifact-glyph CSG (icon / swatch / type / doc) verbatim so the two
@@ -308,17 +309,19 @@ VARIANTS = {
     "transparent": Spec(background="none", gradient=False),
 }
 
-# Every file-backed layer emit() can produce (for Bazel `outs` declaration). The
-# composite-only handhalo is intentionally absent (emit_file=False).
-LAYERS = ["svg", "bg.svg", "strings.svg", "bar.svg", "hand.svg", "artifacts.svg"]
+# NOTE: no LAYERS constant — it lived here only "for Bazel `outs` declaration",
+# i.e. so it could be copied into BUILD.bazel and then kept in step by hand. The
+# layer list now lives in the brand_svgs call alone. (The composite-only handhalo
+# is still absent from it: emit_file=False, so no file is written.)
 
 
-def main(out_dir):
-    os.makedirs(out_dir, exist_ok=True)
-    for name, spec in VARIANTS.items():
-        GodfatherV2(spec).emit(os.path.join(out_dir, f"brando_v2_{name}"))
-        print(f"emit brando_v2_{name} -> {out_dir}")
+def main(argv=None):
+    e = emit.parse_args(argv, prefix="brando_v2", variants=list(VARIANTS))
+    os.makedirs(e.out_dir, exist_ok=True)
+    for name in e.variants:
+        GodfatherV2(VARIANTS[name]).emit(os.path.join(e.out_dir, f"{e.prefix}_{name}"))
+        print(f"emit {e.prefix}_{name} -> {e.out_dir}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else ".")
+    main()

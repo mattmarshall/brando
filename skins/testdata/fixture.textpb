@@ -1,0 +1,98 @@
+# A deliberately NON-BRAND fixture skin — brando's dogfood of brand_skin.
+#
+# brando shipped brand_skin for three releases without ever calling it, which is
+# how the schema-resolution bug survived: nothing in-repo compiled a skin, so
+# nothing noticed that the schema a skin validated against was decided by the
+# CONSUMER's repo mapping rather than brando's.
+#
+# This fixture exists to make that impossible again, so it deliberately exercises
+# the fields that used to fail. It sets:
+#
+#   * Typography.display (field 7)  — added in meridian_schemas 0.15.0, ABSENT
+#     from the retired meridian 0.2.3 that brando used to resolve
+#   * repeated Typography.fonts (8) — same, and also the converter's repeated-field
+#     regression case (0.1.1 kept only the last entry)
+#
+# If brando's schema pin ever slips back to the retired monolith, `bazel build
+# //skins:fixture` fails on the --encode gate instead of six brand repos failing
+# one at a time. The colors are intentionally drab greys: this is a wire-format
+# test, not an identity, and it must never read as a brand anyone could adopt.
+#
+# NOT SET HERE, AND THE REASON IS THE POINT: Palette.warning (13) and info (14).
+# It looks like neglect that zero of the six real skins set them -- meridian's
+# ValueTone therefore collapses NEEDS-ATTENTION and INFORMATIONAL to neutral
+# everywhere -- but they CANNOT be set. Those fields arrive in meridian_schemas
+# 0.20.0 (commit 307b9a5, "ValueTone + EnumOption"), and 0.20.0 is TAGGED in
+# meridian-ux/meridian-schemas but was never published: both registries stop at
+# 0.19.0, so no consumer can bazel_dep a schema that has them. Adding them here
+# fails the encode gate against the 0.17.0 pin -- verified, not assumed.
+# Unblocking that is a meridian-schemas release, not a brando change.
+
+id: "brando_fixture"
+display_name: "brando fixture (not a brand)"
+
+light {
+  bg: "#FFFFFF"
+  surface: "#F4F4F5"
+  fg: "#18181B"
+  muted: "#71717A"
+  border: "#D4D4D8"
+  accent: "#3F3F46"
+  accent_strong: "#18181B"
+  on_accent: "#FFFFFF"
+  danger: "#B91C1C"
+  success: "#15803D"
+  code_bg: "#F4F4F5"
+  code_fg: "#3F3F46"
+}
+
+dark {
+  bg: "#18181B"
+  surface: "#27272A"
+  fg: "#FAFAFA"
+  muted: "#A1A1AA"
+  border: "#3F3F46"
+  accent: "#D4D4D8"
+  accent_strong: "#FAFAFA"
+  on_accent: "#18181B"
+  danger: "#F87171"
+  success: "#4ADE80"
+  code_bg: "#27272A"
+  code_fg: "#D4D4D8"
+}
+
+typography {
+  sans: "ui-sans-serif, system-ui, sans-serif"
+  mono: "ui-monospace, SFMono-Regular, monospace"
+  base_size_px: 16
+  heading_weight: 600
+  body_weight: 400
+  heading_tracking: "-0.015"
+
+  # Field 7. A skin whose identity IS a serif/sans pairing cannot be expressed
+  # without this, and it does not exist in the retired meridian 0.2.3 schema.
+  display: "ui-serif, Georgia, serif"
+
+  # Field 8, repeated. Two entries on purpose: one is also the regression case
+  # for textpb_to_json's repeated-field handling (0.1.1 kept only the last).
+  fonts {
+    family: "Fixture Sans"
+    src_uri: "https://example.invalid/fixture-sans.woff2"
+    weight: "100 900"
+    style: "normal"
+    unicode_range: "U+0000-00FF"
+    display: "swap"
+  }
+  fonts {
+    family: "Fixture Serif"
+    src_uri: "https://example.invalid/fixture-serif.woff2"
+    weight: "600"
+    style: "normal"
+    display: "swap"
+  }
+}
+
+metrics {
+  radius_px: 6
+  unit_px: 4
+}

@@ -6,7 +6,7 @@ A brand loads from here:
          "brand_doc", "brand_resources", "brand_latex_class",
          "brand_skin", "brand_mdbook_theme",
          "brand_svgs", "brand_icons", "brand_iconcomposer",
-         "brand_wordmark", "brand_office_pptx", "brand_office_docx")
+         "brand_wordmark", "brand_wordmark_glyphs", "brand_office_pptx", "brand_office_docx")
 
 The mark-authoring Python library is consumed as py_library deps, not loaded:
     @brando//marklib:marklib        # shapely CSG + layered-SVG/composite emission
@@ -38,6 +38,7 @@ load(
     _brand_office_pptx = "brand_office_pptx",
     _brand_svgs = "brand_svgs",
     _brand_wordmark = "brand_wordmark",
+    _brand_wordmark_glyphs = "brand_wordmark_glyphs",
 )
 
 BrandResourcesInfo = _BrandResourcesInfo
@@ -50,5 +51,6 @@ brand_svgs = _brand_svgs
 brand_icons = _brand_icons
 brand_iconcomposer = _brand_iconcomposer
 brand_wordmark = _brand_wordmark
+brand_wordmark_glyphs = _brand_wordmark_glyphs
 brand_office_pptx = _brand_office_pptx
 brand_office_docx = _brand_office_docx

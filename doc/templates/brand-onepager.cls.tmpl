@@ -10,17 +10,17 @@
 \geometry{margin=16mm}  % geometry already loaded by the brand class; reconfigure
 \RequirePackage{titlesec}
 
-% \fvheader{title}{subtitle}: a bg band (fg title + accent subtitle) closed by an
+% \brandheader{title}{subtitle}: a bg band (fg title + accent subtitle) closed by an
 % accent rule.
-\newcommand{\fvheader}[2]{%
-  \noindent\colorbox{fvbg}{%
+\newcommand{\brandheader}[2]{%
+  \noindent\colorbox{brandbg}{%
     \begin{minipage}[c][22mm][c]{\dimexpr\linewidth-2\fboxsep\relax}%
-      \hspace{3mm}{\color{fvfg}\Huge\bfseries #1}\\[1.5mm]
-      \hspace{3mm}{\color{fvaccent}\large #2}%
+      \hspace{3mm}{\color{brandfg}\Huge\bfseries #1}\\[1.5mm]
+      \hspace{3mm}{\color{brandaccent}\large #2}%
     \end{minipage}}\par
-  \vskip1.5mm{\color{fvaccent}\rule{\linewidth}{1.4pt}}\par\vskip5mm}
+  \vskip1.5mm{\color{brandaccent}\rule{\linewidth}{1.4pt}}\par\vskip5mm}
 
-\titleformat{\section}{\large\bfseries\color{fvaccent}}{}{0pt}{}
+\titleformat{\section}{\large\bfseries\color{brandaccent}}{}{0pt}{}
 \titlespacing{\section}{0pt}{1.6ex}{0.5ex}
 
 \endinput

@@ -8,36 +8,36 @@
 
 /* Brand tokens (parameterized by brando's brand_mdbook_theme). */
 :root {
-  --fv-ink: @INK@;
-  --fv-ink-2: @INK2@;
-  --fv-cream: @CREAM@;
-  --fv-accent: @ACCENT@;
-  --fv-accent-2: @ACCENT2@;
-  --fv-tertiary: @TERTIARY@;
-  --fv-muted: @MUTED@;
+  --brand-bg: @DARK_BG@;
+  --brand-surface: @DARK_SURFACE@;
+  --brand-fg: @DARK_FG@;
+  --brand-accent: @DARK_ACCENT@;
+  --brand-accent-strong: @DARK_ACCENT_STRONG@;
+  --brand-border: @DARK_BORDER@;
+  --brand-muted: @DARK_MUTED@;
 }
 
 /* Dark themes (navy is the default) -> brand ink/cream/accent. */
 .navy, .coal, .ayu, .rust {
-  --bg: var(--fv-ink);
-  --fg: var(--fv-cream);
+  --bg: var(--brand-bg);
+  --fg: var(--brand-fg);
 
-  --sidebar-bg: @SIDEBAR_DARK@;
-  --sidebar-fg: var(--fv-cream);
+  --sidebar-bg: @DARK_SIDEBAR@;
+  --sidebar-fg: var(--brand-fg);
   --sidebar-non-existant: #5b5750;
-  --sidebar-active: var(--fv-accent);
+  --sidebar-active: var(--brand-accent);
   --sidebar-spacer: #2a2c33;
 
   --scrollbar: #3a3d45;
 
   --icons: #8d877b;
-  --icons-hover: var(--fv-cream);
+  --icons-hover: var(--brand-fg);
 
-  --links: var(--fv-accent);
+  --links: var(--brand-accent);
 
-  --inline-code-color: @CODE_FG_DARK@;
+  --inline-code-color: @DARK_CODE_FG@;
 
-  --theme-popup-bg: var(--fv-ink-2);
+  --theme-popup-bg: var(--brand-surface);
   --theme-popup-border: #2a2c33;
   --theme-hover: #23262d;
 
@@ -49,30 +49,30 @@
   --table-alternate-bg: #191b21;
 
   --searchbar-border-color: #2c2f37;
-  --searchbar-bg: var(--fv-ink-2);
-  --searchbar-fg: var(--fv-cream);
+  --searchbar-bg: var(--brand-surface);
+  --searchbar-fg: var(--brand-fg);
   --searchbar-shadow-color: #0c0d10;
-  --search-mark-bg: var(--fv-accent-2);
+  --search-mark-bg: var(--brand-accent-strong);
 
-  --sidebar-active: var(--fv-accent);
+  --sidebar-active: var(--brand-accent);
 }
 
 /* Light theme -> brand cream field / ink text. */
 .light {
   --bg: @LIGHT_BG@;
-  --fg: var(--fv-ink);
+  --fg: var(--brand-bg);
 
   --sidebar-bg: #EFEADC;
   --sidebar-fg: #2b2c30;
   --sidebar-non-existant: #aaa498;
-  --sidebar-active: var(--fv-accent-2);
+  --sidebar-active: var(--brand-accent-strong);
   --sidebar-spacer: #ddd6c6;
 
   --scrollbar: #cfc8b8;
   --icons: #8a8478;
-  --icons-hover: var(--fv-ink);
-  --links: var(--fv-accent-2);
-  --inline-code-color: @CODE_FG_LIGHT@;
+  --icons-hover: var(--brand-bg);
+  --links: var(--brand-accent-strong);
+  --inline-code-color: @LIGHT_CODE_FG@;
 
   --theme-popup-bg: @LIGHT_BG@;
   --theme-popup-border: #ddd6c6;
@@ -87,37 +87,37 @@
 
   --searchbar-border-color: #ddd6c6;
   --searchbar-bg: @LIGHT_BG@;
-  --searchbar-fg: var(--fv-ink);
+  --searchbar-fg: var(--brand-bg);
   --searchbar-shadow-color: #cfc8b8;
-  --search-mark-bg: var(--fv-accent);
+  --search-mark-bg: var(--brand-accent);
 }
 
 /* -- Typography + accent application -- */
 html,
 body,
 .menu-title {
-  font-family: var(--fv-sans);
+  font-family: var(--brand-sans);
 }
 
 .content h1,
 .content h2,
 .content h3,
 .content h4 {
-  font-family: var(--fv-sans);
+  font-family: var(--brand-sans);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 
 /* The top page title carries the brand's accent gradient. */
 .content h1 {
-  background: linear-gradient(180deg, var(--fv-accent), var(--fv-accent-2));
+  background: linear-gradient(180deg, var(--brand-accent), var(--brand-accent-strong));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .chapter li.chapter-item a.active {
-  color: var(--fv-accent);
+  color: var(--brand-accent);
   font-weight: 600;
 }
 
@@ -127,20 +127,22 @@ body,
 }
 
 .content a:hover {
-  color: var(--fv-accent);
+  color: var(--brand-accent);
 }
 
 .content code {
   border-radius: 5px;
 }
 
-/* Opt-in CTA button (landing-style doc pages). */
-.fv-cta {
+/* Opt-in CTA button (landing-style doc pages). Renamed from .fv-cta in
+   0.2.0 — the class shipped in every brand's stylesheet, so it named fastverk
+   in tomato's and meridian's docs too. Grep showed no content using it. */
+.brand-cta {
   display: inline-block;
   padding: 10px 18px;
   border-radius: 10px;
   font-weight: 600;
-  color: @INK@ !important;
+  color: @DARK_BG@ !important;
   text-decoration: none;
-  background: linear-gradient(180deg, var(--fv-accent), var(--fv-accent-2));
+  background: linear-gradient(180deg, var(--brand-accent), var(--brand-accent-strong));
 }

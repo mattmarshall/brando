@@ -1,0 +1,35 @@
+"""brando shared build tools.
+
+`render_template` is the one templating path for every brand artifact that used to
+be produced by `sed` with hand-typed colours — the LaTeX class, the beamer theme,
+the one-pager class, and the mdBook theme. It resolves @TOKEN@ from the brand's
+own skin, so a palette is authored once instead of two to five times.
+
+It also retires `_sed_cmd`, which existed verbatim in BOTH `doc/defs.bzl` and
+`mdbook/defs.bzl` — the escaping helper for a substituter that could not report
+what it failed to substitute.
+"""
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "render_template_lib",
+    srcs = ["render_template.py"],
+    imports = [".."],
+)
+
+py_binary(
+    name = "render_template",
+    srcs = ["render_template.py"],
+    imports = [".."],
+)
+
+py_test(
+    name = "render_template_test",
+    size = "small",
+    srcs = ["render_template_test.py"],
+    imports = [".."],
+    deps = [":render_template_lib"],
+)

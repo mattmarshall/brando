@@ -23,13 +23,13 @@
   BoldFont = @BOLDFONT@ ]
 
 % Brand palette (parameterized by brando's brand_latex_class).
-\definecolor{fvbg}{HTML}{@BG@}
-\definecolor{fvfg}{HTML}{@FG@}
-\definecolor{fvaccent}{HTML}{@ACCENT@}
-\definecolor{fvtertiary}{HTML}{@TERTIARY@}
+\definecolor{brandbg}{HTML}{@BG@}
+\definecolor{brandfg}{HTML}{@FG@}
+\definecolor{brandaccent}{HTML}{@ACCENT@}
+\definecolor{brandmuted}{HTML}{@MUTED@}
 
 % A labeled color swatch.
-\newcommand{\fvswatch}[2]{%
+\newcommand{\brandswatch}[2]{%
   \begin{tikzpicture}[baseline]
     \fill[#1] (0,0) rectangle (1.1,1.1);
     \draw[black!30] (0,0) rectangle (1.1,1.1);

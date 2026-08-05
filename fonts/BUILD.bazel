@@ -1,0 +1,50 @@
+"""brando shared fonts — one copy of a face the fleet vendors three times.
+
+`SpaceGrotesk-Medium.ttf`, `SpaceGrotesk-SemiBold.ttf` and `OFL.txt` were
+md5-identical in fastverk/brand, tomato-bazel/brand and meridian-ux/brand: ~530 KB
+of binary duplicated across three repos, with three separately-maintained
+`exports_files` blocks (two of them byte-identical at 153 bytes) and three places
+someone would have to remember to look when the licence question comes up.
+
+Nothing about a libre typeface is brand content, so it lives here. A brand that
+uses Space Grotesk depends on `@brando//fonts:space_grotesk` and deletes its copy;
+a brand with its own licensed face keeps that face in its own repo, which is the
+correct place for something whose licence is not OFL.
+
+PROVENANCE. `SOURCES.json` records where each file came from, its size, and its
+sha256 — the format aion/brand invented for its webfonts and the only provenance
+record anywhere in the fleet. A vendored binary with no provenance is a licence
+question nobody can answer later.
+"""
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "OFL.txt",
+    "SOURCES.json",
+    "SpaceGrotesk-Medium.ttf",
+    "SpaceGrotesk-SemiBold.ttf",
+])
+
+# The pair a brand_mdbook_theme / brand_latex_class / brand_wordmark wants, plus
+# the licence. The licence is IN the filegroup on purpose: an OFL face may be
+# redistributed, and shipping the face without the licence is the one way to get
+# that wrong.
+filegroup(
+    name = "space_grotesk",
+    srcs = [
+        "OFL.txt",
+        "SpaceGrotesk-Medium.ttf",
+        "SpaceGrotesk-SemiBold.ttf",
+    ],
+)
+
+filegroup(
+    name = "space_grotesk_medium",
+    srcs = ["SpaceGrotesk-Medium.ttf"],
+)
+
+filegroup(
+    name = "space_grotesk_semibold",
+    srcs = ["SpaceGrotesk-SemiBold.ttf"],
+)

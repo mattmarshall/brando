@@ -12,6 +12,7 @@ The schema is brand-neutral; the brand supplies the Canvas (its layers + colors)
 from __future__ import annotations
 
 import json
+import math
 import os
 from typing import Optional, Sequence
 
@@ -34,6 +35,41 @@ def ext_srgb(hexstr: str) -> str:
 
 def _bg_fill(bg_hex: str, mode: str) -> dict:
     return {"automatic-gradient": ext_srgb(bg_hex)} if mode == "auto" else {"solid": ext_srgb(bg_hex)}
+
+
+def _gradient_fill(gradient, default_axis: dict):
+    """Colors + orientation for a manifest fill, from EITHER gradient form.
+
+    ``Layer.gradient`` has two shapes: the original ``(top, bottom)`` 2-tuple, and
+    the ``{"stops": [...], "angle": deg}`` dict that marklib 0.1.0 added for
+    N-stop gradients at any angle. This writer only ever handled the tuple, so a
+    0.1.0-style layer raised ``KeyError: 0`` on ``gradient[0]``.
+
+    It went unnoticed for two releases because ``brand_iconcomposer`` has no
+    caller anywhere in the fleet -- the one rule nothing exercises is the one rule
+    that broke. The angle is honoured rather than dropped, using the same vector
+    construction as ``marklib.linear_gradient``, so the .icon bundle and the SVG
+    do not disagree about which way the gradient runs.
+    """
+    if not isinstance(gradient, (dict,)):
+        return list(gradient), default_axis
+
+    stops = list(gradient.get("stops") or ())
+    colors = [s[1] if isinstance(s, (tuple, list)) else s for s in stops]
+    if len(colors) < 2:
+        raise ValueError(
+            f"iconcomposer: a gradient fill needs at least 2 stops, got {colors!r}"
+        )
+
+    if "angle" not in gradient:
+        return colors, default_axis
+    a = math.radians(float(gradient["angle"]))
+    dx, dy = math.cos(a), math.sin(a)
+    axis = {
+        "start": {"x": 0.5 - dx / 2, "y": 0.5 - dy / 2},
+        "stop": {"x": 0.5 + dx / 2, "y": 0.5 + dy / 2},
+    }
+    return colors, axis
 
 
 def emit_icon_bundle(out_dir: str, name: str, canvas, *,
@@ -64,9 +100,10 @@ def emit_icon_bundle(out_dir: str, name: str, canvas, *,
             "name": layer.name,
         }
         if layer.gradient:
+            colors, axis = _gradient_fill(layer.gradient, grad_axis)
             entry["fill"] = {
-                "linear-gradient": [ext_srgb(layer.gradient[0]), ext_srgb(layer.gradient[1])],
-                "orientation": grad_axis,
+                "linear-gradient": [ext_srgb(c) for c in colors],
+                "orientation": axis,
             }
         layers.append(entry)
 

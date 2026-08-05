@@ -39,6 +39,7 @@ from shapely.affinity import rotate, translate
 from shapely.geometry import LineString, Polygon, box
 from shapely.ops import unary_union
 
+from marklib import emit
 from marklib import Canvas, geom_to_path
 
 
@@ -317,16 +318,20 @@ VARIANTS = {
     "transparent":  Spec(background="none", gradient=False),
 }
 
-# Every layer file emit() can produce (for Bazel `outs` declaration).
-LAYERS = ["svg", "bg.svg", "strings.svg", "bar.svg", "artifacts.svg"]
+# NOTE: there is no LAYERS constant here any more. There used to be one, annotated
+# "for Bazel `outs` declaration" — which is the whole story: it existed only so a
+# human could copy it into BUILD.bazel, where a second copy then had to be kept in
+# step by hand. The layer list now lives in the brand_svgs call and nowhere else,
+# so the two cannot disagree. `emit()` writes whatever layers the Canvas holds.
 
 
-def main(out_dir):
-    os.makedirs(out_dir, exist_ok=True)
-    for name, spec in VARIANTS.items():
-        Godfather(spec).emit(os.path.join(out_dir, f"brando_{name}"))
-        print(f"emit brando_{name} -> {out_dir}")
+def main(argv=None):
+    e = emit.parse_args(argv, prefix="brando", variants=list(VARIANTS))
+    os.makedirs(e.out_dir, exist_ok=True)
+    for name in e.variants:
+        Godfather(VARIANTS[name]).emit(os.path.join(e.out_dir, f"{e.prefix}_{name}"))
+        print(f"emit {e.prefix}_{name} -> {e.out_dir}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else ".")
+    main()

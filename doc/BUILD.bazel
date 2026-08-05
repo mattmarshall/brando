@@ -1,3 +1,5 @@
+load(":defs.bzl", "brand_latex_class")
+
 package(default_visibility = ["//visibility:public"])
 
 # The templated brand LaTeX class / beamer theme / one-pager class. A brand
@@ -7,4 +9,20 @@ exports_files(glob(["templates/*.tmpl"]) + ["defs.bzl"])
 filegroup(
     name = "templates",
     srcs = glob(["templates/*.tmpl"]),
+)
+
+# brando's dogfood of brand_latex_class.
+#
+# Like brand_skin before 0.2.0, this rule had NO in-repo caller — and an
+# unexercised rule is an untested rule; that is precisely how brand_skin came to
+# resolve its schema from the consumer's repo mapping, and how brand_iconcomposer
+# shipped a KeyError for two releases. Building this proves the class renders from
+# a skin, that --strip_hash produces the bare 6-hex xcolor wants, and that a
+# renamed token fails the build rather than shipping a literal "@ACCENT@".
+brand_latex_class(
+    name = "fixture_class",
+    bold_font = "SpaceGrotesk-SemiBold.ttf",
+    classname = "brandofixture",
+    main_font = "SpaceGrotesk-Medium.ttf",
+    skin = "//skins:fixture_json",
 )

@@ -1,0 +1,156 @@
+{
+  "messages": {
+    "meridian.theme.v1.FontSource": {
+      "display": {
+        "kind": "string",
+        "repeated": false
+      },
+      "family": {
+        "kind": "string",
+        "repeated": false
+      },
+      "src_uri": {
+        "kind": "string",
+        "repeated": false
+      },
+      "style": {
+        "kind": "string",
+        "repeated": false
+      },
+      "unicode_range": {
+        "kind": "string",
+        "repeated": false
+      },
+      "weight": {
+        "kind": "string",
+        "repeated": false
+      }
+    },
+    "meridian.theme.v1.Metrics": {
+      "radius_px": {
+        "kind": "number",
+        "repeated": false
+      },
+      "unit_px": {
+        "kind": "number",
+        "repeated": false
+      }
+    },
+    "meridian.theme.v1.Palette": {
+      "accent": {
+        "kind": "string",
+        "repeated": false
+      },
+      "accent_strong": {
+        "kind": "string",
+        "repeated": false
+      },
+      "bg": {
+        "kind": "string",
+        "repeated": false
+      },
+      "border": {
+        "kind": "string",
+        "repeated": false
+      },
+      "code_bg": {
+        "kind": "string",
+        "repeated": false
+      },
+      "code_fg": {
+        "kind": "string",
+        "repeated": false
+      },
+      "danger": {
+        "kind": "string",
+        "repeated": false
+      },
+      "fg": {
+        "kind": "string",
+        "repeated": false
+      },
+      "muted": {
+        "kind": "string",
+        "repeated": false
+      },
+      "on_accent": {
+        "kind": "string",
+        "repeated": false
+      },
+      "success": {
+        "kind": "string",
+        "repeated": false
+      },
+      "surface": {
+        "kind": "string",
+        "repeated": false
+      }
+    },
+    "meridian.theme.v1.Theme": {
+      "dark": {
+        "kind": "message",
+        "repeated": false,
+        "type": "meridian.theme.v1.Palette"
+      },
+      "display_name": {
+        "kind": "string",
+        "repeated": false
+      },
+      "id": {
+        "kind": "string",
+        "repeated": false
+      },
+      "light": {
+        "kind": "message",
+        "repeated": false,
+        "type": "meridian.theme.v1.Palette"
+      },
+      "metrics": {
+        "kind": "message",
+        "repeated": false,
+        "type": "meridian.theme.v1.Metrics"
+      },
+      "typography": {
+        "kind": "message",
+        "repeated": false,
+        "type": "meridian.theme.v1.Typography"
+      }
+    },
+    "meridian.theme.v1.Typography": {
+      "base_size_px": {
+        "kind": "number",
+        "repeated": false
+      },
+      "body_weight": {
+        "kind": "number",
+        "repeated": false
+      },
+      "display": {
+        "kind": "string",
+        "repeated": false
+      },
+      "fonts": {
+        "kind": "message",
+        "repeated": true,
+        "type": "meridian.theme.v1.FontSource"
+      },
+      "heading_tracking": {
+        "kind": "string",
+        "repeated": false
+      },
+      "heading_weight": {
+        "kind": "number",
+        "repeated": false
+      },
+      "mono": {
+        "kind": "string",
+        "repeated": false
+      },
+      "sans": {
+        "kind": "string",
+        "repeated": false
+      }
+    }
+  },
+  "root": "meridian.theme.v1.Theme"
+}

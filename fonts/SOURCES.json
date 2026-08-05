@@ -1,0 +1,21 @@
+{
+  "_comment": "Provenance for brando's vendored faces, in the format aion/brand invented for its webfonts. A vendored binary with no provenance is a licence question nobody can answer later. Verify with: shasum -a 256 <file>",
+  "family": "Space Grotesk",
+  "license": "SIL Open Font License 1.1 (see OFL.txt)",
+  "upstream": "https://github.com/floriankarsten/space-grotesk",
+  "lifted_from": "fastverk/brand, tomato-bazel/brand and meridian-ux/brand carried md5-identical copies; brando is now the single one.",
+  "files": {
+    "SpaceGrotesk-Medium.ttf": {
+      "sha256": "f0bfb6e305c3467a833f3368df308f34b1e0ba555ce93ca32a83052d7fffbbaf",
+      "bytes": 88332
+    },
+    "SpaceGrotesk-SemiBold.ttf": {
+      "sha256": "53c206cc5734102d36d7247d31959a62c90ab212609443e51144d448fd81155e",
+      "bytes": 88216
+    },
+    "OFL.txt": {
+      "sha256": "564ce565c371c5e5bbf286006565a7c9aa55a9f56e7ca58d56e05d649dd61a72",
+      "bytes": 4495
+    }
+  }
+}

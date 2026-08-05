@@ -1,3 +1,5 @@
+load(":defs.bzl", "brand_mdbook_theme")
+
 package(default_visibility = ["//visibility:public"])
 
 # Templated mdBook theme overlay (custom.css / fonts.css / head.hbs). A brand
@@ -7,4 +9,17 @@ exports_files(glob(["templates/*.tmpl"]) + ["defs.bzl"])
 filegroup(
     name = "templates",
     srcs = glob(["templates/*.tmpl"]),
+)
+
+# brando's dogfood of brand_mdbook_theme — the same reasoning as //doc:fixture_class.
+# Also the proof that `theme_dir` makes the rule multi-instantiable: before 0.2.0
+# the six output paths were hardcoded, so a package could hold exactly one theme.
+brand_mdbook_theme(
+    name = "fixture_theme",
+    favicon = "//selfbrand:brando_transparent.svg",
+    font_family = "Space Grotesk",
+    medium_ttf = "//fonts:SpaceGrotesk-Medium.ttf",
+    semibold_ttf = "//fonts:SpaceGrotesk-SemiBold.ttf",
+    skin = "//skins:fixture_json",
+    theme_dir = "fixture-theme",
 )

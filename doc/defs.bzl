@@ -92,36 +92,60 @@ brand_doc = rule(
 def brand_latex_class(
         name,
         classname,
-        bg,
-        fg,
-        accent,
-        tertiary,
         main_font,
         bold_font,
+        skin = None,
+        mode = "dark",
+        bg = None,
+        fg = None,
+        accent = None,
+        muted = None,
         wordmark = None,
         visibility = None):
-    """Template brando's base LaTeX class + beamer theme + one-pager class with a
-    brand's palette + fonts, and emit them with the brand's class name.
+    """Template brando's LaTeX class + beamer theme + one-pager class for a brand.
 
     Produces three generated files (label `:<name>` is a filegroup of all three):
       * `<classname>.cls`              — the article-based brand class
       * `beamertheme<classname>.sty`   — the beamer theme (\\usetheme{<classname>})
       * `<classname>-onepager.cls`     — the tight one-page class
 
-    Colors are 6-hex strings WITHOUT a leading '#'. `main_font` / `bold_font` are
-    the font filenames as staged under fonts/ (e.g. "MyFont-Medium.ttf").
+    PREFERRED: pass `skin` (a brand_skin `<name>_json` label) and the palette is
+    read from it. `mode` picks which of the skin's palettes a printed artifact
+    uses; it defaults to dark because that is what every brand that has a deck
+    today actually prints.
+
+    LEGACY: the explicit `bg`/`fg`/`accent`/`muted` colours still work, as 6-hex
+    WITHOUT a leading '#'. They were the only option before 0.2.0 and are how the
+    palette came to be authored a third time, in a third notation — a brand should
+    move to `skin` and delete them.
+
+    `main_font` / `bold_font` are font filenames as staged under fonts/.
     """
+    if bool(skin) == bool(bg):
+        fail(
+            "%s: pass either `skin` (preferred) or the explicit " % name +
+            "bg/fg/accent/muted colours, not both — re-typing the palette " +
+            "alongside the skin it came from is the drift this attribute removes.",
+        )
+
     wordmark = wordmark or classname
-    subs = {
-        "@CLASSNAME@": classname,
-        "@BG@": bg,
-        "@FG@": fg,
-        "@ACCENT@": accent,
-        "@TERTIARY@": tertiary,
-        "@MAINFONT@": main_font,
-        "@BOLDFONT@": bold_font,
-        "@WORDMARK@": wordmark,
-    }
+    sets = [
+        "CLASSNAME=%s" % classname,
+        "MAINFONT=%s" % main_font,
+        "BOLDFONT=%s" % bold_font,
+        "WORDMARK=%s" % wordmark,
+    ]
+    if not skin:
+        sets += [
+            "BG=%s" % bg,
+            "FG=%s" % fg,
+            "ACCENT=%s" % accent,
+            "MUTED=%s" % muted,
+        ]
+
+    srcs = [skin] if skin else []
+    theme_arg = "--theme_json $(execpath %s) --mode %s " % (skin, mode) if skin else ""
+
     outs = [
         ("@brando//doc:templates/brand.cls.tmpl", "%s.cls" % classname),
         ("@brando//doc:templates/brand-beamer.sty.tmpl", "beamertheme%s.sty" % classname),
@@ -132,9 +156,16 @@ def brand_latex_class(
         rule_name = "%s_%s" % (name, outfile.replace(".", "_").replace("-", "_"))
         native.genrule(
             name = rule_name,
-            srcs = [tmpl],
+            srcs = srcs + [tmpl],
             outs = [outfile],
-            cmd = _sed_cmd(subs),
+            cmd = (
+                "$(execpath @brando//tools:render_template) " +
+                "--template $(execpath %s) --out $@ --strip_hash " % tmpl +
+                theme_arg +
+                # Single-quoted: font filenames and wordmarks contain spaces.
+                " ".join(["--set '%s'" % kv for kv in sets])
+            ),
+            tools = ["@brando//tools:render_template"],
             visibility = visibility,
         )
         out_files.append(":" + outfile)
@@ -142,14 +173,5 @@ def brand_latex_class(
     native.filegroup(
         name = name,
         srcs = out_files,
-        visibility = visibility,
+        visibility = visibility or ["//visibility:public"],
     )
-
-def _sed_cmd(subs):
-    # Literal substitution via sed; escape '&', '/', '\' for the replacement and
-    # the delimiter. Keys are @TOKEN@ so they can't collide with LaTeX braces.
-    parts = []
-    for k, v in subs.items():
-        esc = v.replace("\\", "\\\\").replace("&", "\\&").replace("|", "\\|")
-        parts.append("-e 's|%s|%s|g'" % (k, esc))
-    return "sed " + " ".join(parts) + " $< > $@"

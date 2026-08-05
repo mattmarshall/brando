@@ -4,3 +4,7 @@ pillow
 fonttools
 python-pptx
 python-docx
+# The proto runtime for skins/skin_json.py, which decodes the protoc-produced
+# binpb through the theme descriptor set. This is what retires the hand-maintained
+# _INT_FIELDS/_REPEATED_FIELDS tables that caused the 0.1.1 repeated-field bug.
+protobuf

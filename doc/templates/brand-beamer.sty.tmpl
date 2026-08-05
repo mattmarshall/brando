@@ -8,20 +8,20 @@
 \usefonttheme{professionalfonts}
 
 % Brand palette (parameterized by brando's brand_latex_class).
-\definecolor{fvbg}{HTML}{@BG@}
-\definecolor{fvfg}{HTML}{@FG@}
-\definecolor{fvaccent}{HTML}{@ACCENT@}
-\definecolor{fvslate}{HTML}{@TERTIARY@}
+\definecolor{brandbg}{HTML}{@BG@}
+\definecolor{brandfg}{HTML}{@FG@}
+\definecolor{brandaccent}{HTML}{@ACCENT@}
+\definecolor{brandmuted}{HTML}{@MUTED@}
 
-\setbeamercolor{background canvas}{bg=fvbg}
-\setbeamercolor{normal text}{fg=fvfg}
-\setbeamercolor{structure}{fg=fvaccent}
-\setbeamercolor{title}{fg=fvfg}
-\setbeamercolor{frametitle}{fg=fvfg}
-\setbeamercolor{itemize item}{fg=fvaccent}
-\setbeamercolor{itemize subitem}{fg=fvslate}
-\setbeamercolor{block title}{fg=fvbg, bg=fvaccent}
-\setbeamercolor{block body}{fg=fvfg, bg=fvslate!25}
+\setbeamercolor{background canvas}{bg=brandbg}
+\setbeamercolor{normal text}{fg=brandfg}
+\setbeamercolor{structure}{fg=brandaccent}
+\setbeamercolor{title}{fg=brandfg}
+\setbeamercolor{frametitle}{fg=brandfg}
+\setbeamercolor{itemize item}{fg=brandaccent}
+\setbeamercolor{itemize subitem}{fg=brandmuted}
+\setbeamercolor{block title}{fg=brandbg, bg=brandaccent}
+\setbeamercolor{block body}{fg=brandfg, bg=brandmuted!25}
 
 \setbeamerfont{frametitle}{series=\bfseries, size=\Large}
 \setbeamerfont{title}{series=\bfseries, size=\Huge}
@@ -33,12 +33,12 @@
   \vskip0.7em
   {\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}%
   \vskip0.15em
-  {\color{fvaccent}\rule{\linewidth}{1.2pt}}%
+  {\color{brandaccent}\rule{\linewidth}{1.2pt}}%
 }
 
 % Quiet footline: wordmark text + slide number.
 \setbeamertemplate{footline}{%
-  \hfill{\color{fvslate}\scriptsize\textbf{@WORDMARK@}\quad\insertframenumber}%
+  \hfill{\color{brandmuted}\scriptsize\textbf{@WORDMARK@}\quad\insertframenumber}%
   \hspace{1.2em}\vskip0.5em
 }
 

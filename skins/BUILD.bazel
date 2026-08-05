@@ -1,28 +1,133 @@
 """brando skins pipeline — the reusable textpb -> binpb/json machinery.
 
-This package holds ONLY the pipeline (the textpb_to_json tool + the brand_skin
-macro in defs.bzl). A brand's own `<brand>.textpb` lives in the brand's repo and
-is compiled there with `load("@brando//skins:defs.bzl", "brand_skin")`.
+This package holds the pipeline (the skin_json tool, the shared theme descriptor
+set, and the brand_skin macro in defs.bzl) plus ONE fixture skin that exists only
+to keep brando honest about its own contract. A brand's `<brand>.textpb` lives in
+the brand's repo and is compiled there with
+`load("@brando//skins:defs.bzl", "brand_skin")`.
 """
 
+load("@brando_pip//:requirements.bzl", "requirement")
 load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load(":defs.bzl", "brand_skin")
 
 package(default_visibility = ["//visibility:public"])
 
-# textproto -> proto3-JSON (stdlib only). Referenced by brand_skin's json genrule.
+# theme.proto -> FileDescriptorSet, built ONCE here and shared by every consumer's
+# brand_skin call. This is what lets the JSON twin be DERIVED from the validated
+# binpb rather than independently re-parsed from the textproto by a tokenizer with
+# hand-maintained schema tables. theme.proto has no imports, so a single
+# --proto_path suffices and no --include_imports is needed.
+#
+# Plain-string labels are correct HERE and nowhere else in this package's public
+# surface: this genrule lives in brando, so brando's repo mapping is the one that
+# applies. defs.bzl runs in the CALLER's package and must use Label() — see the
+# module docstring there.
+genrule(
+    name = "theme_descriptor_set",
+    srcs = ["@meridian_schemas//proto:theme.proto"],
+    outs = ["theme.descset"],
+    cmd = (
+        "$(execpath @protobuf//:protoc) " +
+        "--descriptor_set_out=$@ " +
+        "--proto_path=$$(dirname $(execpath @meridian_schemas//proto:theme.proto)) " +
+        "$(execpath @meridian_schemas//proto:theme.proto)"
+    ),
+    tools = ["@protobuf//:protoc"],
+)
+
+# textpb -> proto3-JSON, driven by the committed theme_schema.json. STDLIB ONLY,
+# and that is a hard requirement: this runs in the CONSUMER's build, and brand
+# repos need not have rules_python at all (savault and graph have no pip hub).
+# A protobuf-wheel version of this was tried and reverted — it failed a scratch
+# consumer declaring nothing but bazel_dep(brando) with "No matching wheel for
+# current configuration's Python version".
 py_binary(
-    name = "textpb_to_json",
-    srcs = ["textpb_to_json.py"],
+    name = "skin_json",
+    srcs = ["skin_json.py"],
 )
 
-# Regression gate for the converter. The repeated-field case is the reason this
-# exists: a repeated field that overwrote itself produced a JSON twin that
-# silently disagreed with the protoc-produced binpb, and nothing failed.
+# Derives theme_schema.json from theme.proto. BRANDO-ONLY: it needs the protobuf
+# runtime, which is fine here (brando is the root module in its own build) and is
+# exactly what must not reach a consumer.
+py_binary(
+    name = "regen_theme_schema",
+    srcs = ["regen_theme_schema.py"],
+    deps = [requirement("protobuf")],
+)
+
+# The drift gate. Regenerates the schema from the pinned theme.proto and diffs it
+# against the committed file, so the tables stay schema-derived rather than
+# remembered — the property the hand-written _INT_FIELDS/_REPEATED_FIELDS lacked.
+genrule(
+    name = "theme_schema_regenerated",
+    srcs = [":theme_descriptor_set"],
+    outs = ["theme_schema.regenerated.json"],
+    cmd = (
+        "$(execpath :regen_theme_schema) " +
+        "--descriptor_set $(execpath :theme_descriptor_set) " +
+        "--root meridian.theme.v1.Theme --out $@"
+    ),
+    tools = [":regen_theme_schema"],
+)
+
 py_test(
-    name = "textpb_to_json_test",
+    name = "theme_schema_test",
     size = "small",
-    srcs = ["textpb_to_json_test.py"],
-    data = ["textpb_to_json.py"],
+    srcs = ["theme_schema_test.py"],
+    data = [
+        "theme_schema.json",
+        ":theme_schema_regenerated",
+    ],
+    env = {
+        "COMMITTED": "$(rootpath theme_schema.json)",
+        "REGENERATED": "$(rootpath :theme_schema_regenerated)",
+    },
 )
 
-exports_files(["defs.bzl"])
+# Unit gate on the converter itself. Builds its inputs by SERIALIZING a message
+# rather than by writing textproto, so a failure is unambiguously skin_json's and
+# not the encode step's.
+py_test(
+    name = "skin_json_test",
+    size = "small",
+    srcs = ["skin_json_test.py"],
+    data = [
+        "theme_schema.json",
+        ":skin_json",
+    ],
+    env = {
+        "SKIN_JSON": "$(rootpath :skin_json)",
+        "THEME_SCHEMA": "$(rootpath theme_schema.json)",
+    },
+)
+
+# brando's own dogfood of brand_skin, and the gate on the schema pin.
+#
+# brand_skin went three releases with NO in-repo caller, which is exactly how it
+# came to resolve its schema from the CONSUMER's repo mapping instead of brando's
+# without anyone noticing. Building this target compiles a Theme that uses
+# Typography.display and repeated Typography.fonts, so a slip back to the retired
+# meridian 0.2.3 schema fails HERE, in brando's own CI, rather than in six brand
+# repos one at a time. See skins/testdata/fixture.textpb.
+brand_skin(
+    name = "fixture",
+    textpb = "testdata/fixture.textpb",
+)
+
+# The binpb genrule is the encode gate; this asserts the JSON twin actually agrees
+# with it on the shapes that have bitten us — a repeated message and a uint32 —
+# rather than merely being produced.
+py_test(
+    name = "fixture_json_test",
+    size = "small",
+    srcs = ["fixture_json_test.py"],
+    data = [":fixture_json"],
+    env = {"FIXTURE_JSON": "$(rootpath :fixture_json)"},
+)
+
+exports_files([
+    "defs.bzl",
+    # The consumer-visible schema map brand_skin passes to skin_json.
+    "theme_schema.json",
+])

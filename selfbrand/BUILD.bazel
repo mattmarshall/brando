@@ -1,4 +1,4 @@
-load("@brando//:defs.bzl", "brand_icons", "brand_svgs")
+load("@brando//:defs.bzl", "brand_icons", "brand_svgs", "brand_wordmark_glyphs")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@brando_pip//:requirements.bzl", "requirement")
 
@@ -14,7 +14,10 @@ py_library(
     name = "wordmark_geom",
     srcs = ["wordmark_geom.py"],
     imports = ["."],
-    deps = [requirement("shapely")],
+    deps = [
+        "@brando//marklib:wordmark",
+        requirement("shapely"),
+    ],
 )
 
 # The marionette mark construction (shapely CSG) + marklib emission.
@@ -93,12 +96,18 @@ py_binary(
     ],
 )
 
-# brando self-brand layered SVGs. The "transparent" variant emits no bg.svg
-# layer (keep these lists in sync with gen_godfather.py VARIANTS / LAYERS).
+# brando self-brand layered SVGs.
+#
+# These lists are now the ONLY copy: brand_svgs computes the outs from them and
+# passes them to the generator as --variant/--layer, so gen_godfather.py no longer
+# carries a LAYERS constant for a human to copy over here. The "keep these lists
+# in sync" comment that used to live on this block is gone with the second list.
 _BG_VARIANTS = [
     "inkbg",
     "inkbg_grad",
 ]
+
+_VARIANTS = _BG_VARIANTS + ["transparent"]
 
 _LAYERS = [
     "svg",
@@ -109,16 +118,17 @@ _LAYERS = [
 
 brand_svgs(
     name = "brando_svgs",
+    # Real structure, not an exception to paper over: a background layer only
+    # exists for the variants that HAVE a background. Stating it beats bending
+    # the grid to pretend "transparent" has one.
+    extra_outs = ["brando_%s.bg.svg" % v for v in _BG_VARIANTS],
     generator = ":gen_godfather",
-    outs = (
-        ["brando_%s.%s" % (v, lyr) for v in _BG_VARIANTS for lyr in _LAYERS] +
-        ["brando_%s.bg.svg" % v for v in _BG_VARIANTS] +
-        ["brando_transparent.%s" % lyr for lyr in _LAYERS]
-    ),
+    layers = _LAYERS,
+    prefix = "brando",
+    variants = _VARIANTS,
 )
 
 # brando self-brand avatar PNGs (square, 512 + 1024), rasterized hermetically.
-# Keep variants/sizes in sync with raster_godfather.py.
 _PNG_MARK_VARIANTS = [
     "inkbg",
     "inkbg_grad",
@@ -137,18 +147,15 @@ _PNG_SIZES = [
 
 brand_icons(
     name = "brando_icons",
-    outs = [
-        "brando_%s_%d.png" % (v, s)
-        for v in (_PNG_MARK_VARIANTS + _PNG_WORDMARK_VARIANTS)
-        for s in _PNG_SIZES
-    ],
+    prefix = "brando",
     rasterizer = ":raster_godfather",
+    sizes = _PNG_SIZES,
+    variants = _PNG_MARK_VARIANTS + _PNG_WORDMARK_VARIANTS,
 )
 
 # ---- v2 self-brand assets (the GODFATHER marionette WITH THE HAND) ----
 # Same variant/layer/size vocabulary as v1, with a "hand" layer added and the
-# composite-only "handhalo" omitted (it is emit_file=False). Keep these lists in
-# sync with gen_godfather_v2.py VARIANTS / LAYERS and raster_godfather_v2.py.
+# composite-only "handhalo" omitted (it is emit_file=False, so no file exists).
 _V2_LAYERS = [
     "svg",
     "strings.svg",
@@ -159,22 +166,19 @@ _V2_LAYERS = [
 
 brand_svgs(
     name = "brando_v2_svgs",
+    extra_outs = ["brando_v2_%s.bg.svg" % v for v in _BG_VARIANTS],
     generator = ":gen_godfather_v2",
-    outs = (
-        ["brando_v2_%s.%s" % (v, lyr) for v in _BG_VARIANTS for lyr in _V2_LAYERS] +
-        ["brando_v2_%s.bg.svg" % v for v in _BG_VARIANTS] +
-        ["brando_v2_transparent.%s" % lyr for lyr in _V2_LAYERS]
-    ),
+    layers = _V2_LAYERS,
+    prefix = "brando_v2",
+    variants = _VARIANTS,
 )
 
 brand_icons(
     name = "brando_v2_icons",
-    outs = [
-        "brando_v2_%s_%d.png" % (v, s)
-        for v in (_PNG_MARK_VARIANTS + _PNG_WORDMARK_VARIANTS)
-        for s in _PNG_SIZES
-    ],
+    prefix = "brando_v2",
     rasterizer = ":raster_godfather_v2",
+    sizes = _PNG_SIZES,
+    variants = _PNG_MARK_VARIANTS + _PNG_WORDMARK_VARIANTS,
 )
 
 # ---- brando's CANONICAL mark: the vectorized Marlon Brando portrait ----
@@ -185,4 +189,32 @@ brand_icons(
 filegroup(
     name = "portrait",
     srcs = glob(["portrait/**"]),
+)
+
+# ---- brando's wordmark + lockup, via the CONSTRUCTED-glyph path ----
+# The dogfood for brand_wordmark_glyphs. brando's serif "brando" is shapely CSG,
+# not a typeface, so the fontTools path cannot render it — which is aion's exact
+# situation, and why aion hand-rolled 143 lines before marklib:wordmark existed.
+py_binary(
+    name = "gen_wordmark",
+    srcs = ["gen_wordmark.py"],
+    imports = ["."],
+    deps = [
+        ":gen_godfather_lib",
+        ":wordmark_geom",
+        "@brando//marklib",
+        "@brando//marklib:wordmark",
+        requirement("shapely"),
+    ],
+)
+
+brand_wordmark_glyphs(
+    name = "brando_wordmark_svgs",
+    generator = ":gen_wordmark",
+    outs = [
+        "brando_wordmark_dark.svg",
+        "brando_wordmark_light.svg",
+        "brando_lockup_dark.svg",
+        "brando_lockup_light.svg",
+    ],
 )

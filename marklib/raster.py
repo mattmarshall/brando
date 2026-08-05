@@ -13,6 +13,7 @@ No system rsvg/sips/iconutil — pure Pillow, so it is hermetic under Bazel.
 from __future__ import annotations
 
 import math
+import os
 from typing import Optional
 
 import numpy as np
@@ -126,33 +127,86 @@ def background_rect(img, size, fill, round_frac):
         [0, 0, size - 1, size - 1], radius=int(round_frac * size), fill=fill)
 
 
-def rasterize_canvas(canvas, supersample: int = 1):
-    """Rasterize a marklib ``Canvas`` to an RGBA PIL image at ``canvas.size``.
+# ── the rasterizer driver ────────────────────────────────────────────────────
+#
+# Every brand shipped its own copy of the loop below. fastverk's raster.py and
+# meridian-brand's differ by 25 lines out of 57, and every one of those 25 is the
+# brand's own name or its own layer order -- `PNG_SIZES`, `ICO_SIZES`, `emit()`
+# and `main()` are the same code four times over.
+#
+# The split that makes it shareable: the DRIVER owns sizing, supersampling, image
+# creation, file naming and icns/ico packing; the BRAND owns one `paint` callback
+# that says which layers go down in what order. That callback is the ~15 lines
+# that are genuinely per-brand; the ~40 around it were never anyone's content.
+#
+# Supersampling is the reason this is a correctness fix and not just tidying.
+# aion and tomato render at 2-4x and downsample because Pillow's polygon fill is
+# hard-edged; fastverk and meridian do not, so their small icons have jagged
+# diagonals. Nobody chose that -- it is which copy of the file you started from.
+# `ss` defaults to 2 here, so the fix arrives by adoption.
 
-    Renders the background (if any) then each shape layer back-to-front, honoring
-    per-layer gradient/opacity. ``supersample`` renders at NxN and downsamples
-    (LANCZOS) for antialiasing — Pillow's polygon fill is hard-edged.
+PNG_SIZES = (16, 32, 48, 64, 128, 256, 512, 1024)
+ICO_SIZES = (16, 32, 48, 64, 128, 256)
 
-    NOTE: ``canvas.tf`` must already map to the SUPERSAMPLED canvas size. Most
-    brands instead rebuild their Spec at ``size*supersample`` and pass that
-    Canvas in; this helper just composites whatever it is handed.
+
+def render(spec, size: int, paint, *, ss: int = 2, at_size=None):
+    """Render one mark at ``size`` px into a transparent RGBA image.
+
+    ``paint(img, px, spec_at_px)`` lays down the brand's layers; it is called with
+    the SUPERSAMPLED pixel size and a spec already rebuilt at that size, so a
+    brand never does the ``size * ss`` arithmetic itself. That arithmetic is the
+    sharp edge the old ``rasterize_canvas`` documented but did not remove: it
+    required the caller's transform to already map to the supersampled canvas,
+    which is why every brand hand-rolled this instead of using it.
+
+    ``at_size`` overrides how the spec is rebuilt (default: ``fit.spec_at``), for
+    a brand whose size field is not called ``canvas``.
     """
-    big = canvas.size
+    from .fit import spec_at as _default_at_size
+
+    rebuild = at_size or _default_at_size
+    big = size * ss
+    s = rebuild(spec, big)
     img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
-    if canvas.bg is not None:
-        background_rect(img, big, canvas.bg.fill, canvas.bg_round)
-    for layer in canvas.layers:
-        g = layer.gradient
-        if isinstance(g, dict):       # N-stop, any angle
-            paste_geom(img, big, canvas.tf, layer.geom, layer.fill,
-                       stops=g["stops"], angle_deg=g.get("angle", 90.0),
-                       opacity=int(layer.opacity * 255))
-        else:                         # legacy (top, bottom) vertical, or solid
-            top = g[0] if g else layer.fill
-            bot = g[1] if g else None
-            paste_geom(img, big, canvas.tf, layer.geom, top, bot,
-                       gradient=bool(g), opacity=int(layer.opacity * 255))
-    if supersample > 1:
-        out = big // supersample
-        return img.resize((out, out), Image.LANCZOS)
+    paint(img, big, s)
+    if ss > 1:
+        return img.resize((size, size), Image.LANCZOS)
     return img
+
+
+def render_set(out_dir, stem: str, spec, paint, *, sizes=PNG_SIZES, ss: int = 2,
+               packed: bool = False, ico_sizes=ICO_SIZES,
+               icns_from: int = 1024, ico_from: int = 256, at_size=None):
+    """Emit ``<stem>_<size>.png`` for every size, plus ``.icns``/``.ico``.
+
+    Returns the list of paths written, so a caller can assert on the artifact set
+    rather than trusting a hand-maintained list to match (see brand_icons).
+
+    ``packed`` adds the macOS/Windows bundles. They are built from the rendered
+    images already in hand, so the sizes they need must be in ``sizes`` -- asked
+    for and missing is an error here rather than a confusing Pillow failure.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    imgs = {size: render(spec, size, paint, ss=ss, at_size=at_size) for size in sizes}
+
+    written = []
+    for size in sizes:
+        path = os.path.join(out_dir, f"{stem}_{size}.png")
+        imgs[size].save(path)
+        written.append(path)
+
+    if packed:
+        for needed, what in ((icns_from, ".icns"), (ico_from, ".ico")):
+            if needed not in imgs:
+                raise ValueError(
+                    f"render_set({stem!r}): {what} is built from the {needed}px "
+                    f"render, but {needed} is not in sizes={tuple(sizes)}"
+                )
+        icns = os.path.join(out_dir, f"{stem}.icns")
+        imgs[icns_from].save(icns, format="ICNS")
+        written.append(icns)
+        ico = os.path.join(out_dir, f"{stem}.ico")
+        imgs[ico_from].save(ico, format="ICO", sizes=[(s, s) for s in ico_sizes])
+        written.append(ico)
+
+    return written

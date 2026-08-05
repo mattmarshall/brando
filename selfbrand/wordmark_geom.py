@@ -25,6 +25,8 @@ from shapely.affinity import translate
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
 
+from marklib import wordmark as mwordmark
+
 SEG = 96
 
 # ---- design metrics (em-space, y DOWN; baseline at y=0) ----
@@ -156,14 +158,18 @@ _BUILDERS = {
 
 
 def brando_word(tracking: float = 0.060):
-    """Union the "brando" letters in em-space. Returns ``(geom, width)``."""
-    parts = []
-    x = 0.0
-    for ch in "brando":
-        g, adv = _BUILDERS[ch](x)
-        parts.append(g)
-        x += adv + tracking
-    word = unary_union(parts).buffer(0.003).buffer(-0.003)
+    """Union the "brando" letters in em-space. Returns ``(geom, width)``.
+
+    The left-to-right placement is `marklib.wordmark.place` — the same operation
+    aion hand-rolled and brando's TTF path performs with font advances. What stays
+    here is the serif construction and the hairline cleanup below, which are this
+    wordmark's own.
+    """
+    glyphs = [_BUILDERS[ch](0.0) for ch in "brando"]
+    word, _ = mwordmark.place(glyphs, tracking)
+    # Close the hairline seams where a serif meets its stem: a union of nearly
+    # touching polygons leaves slivers that show as light cracks when rasterized.
+    word = word.buffer(0.003).buffer(-0.003)
     minx, _, maxx, _ = word.bounds
     return word, maxx - minx
 

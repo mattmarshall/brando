@@ -18,7 +18,7 @@
 # pulling shapely/svgwrite/pillow/fonttools/python-pptx/python-docx wheels).
 module(
     name = "brando",
-    version = "0.1.1",
+    version = "0.2.0",
 )
 
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -26,13 +26,30 @@ bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_tectonic", version = "0.2.0")
 
-# meridian — brando depends on it ONLY for the theme SCHEMA
-# (@meridian//proto:theme.proto): brand_skin compiles a brand's Theme textproto
-# against it (protoc --encode) into <brand>.binpb/json. brando pulls no renderer
-# code; meridian stays brand-neutral. protobuf provides protoc for the encode.
+# meridian_schemas — brando depends on it ONLY for the theme SCHEMA
+# (@meridian_schemas//proto:theme.proto): brand_skin compiles a brand's Theme
+# textproto against it (protoc --encode) into <brand>.binpb/json. brando pulls no
+# renderer code; meridian stays brand-neutral. protobuf provides protoc.
 #
-# Pinned to the PUBLISHED meridian 0.2.3 (the release that exports theme.proto).
-bazel_dep(name = "meridian", version = "0.2.3")
+# WHY meridian_schemas AND NOT THE RETIRED `meridian` MONOLITH. brand_skin used to
+# name "@meridian//proto:theme.proto" as a PLAIN STRING inside native.genrule(srcs)
+# -- and bzlmod resolves a plain-string label in a legacy macro with the repo
+# mapping of the CALLING package, not brando's. So which schema validated a skin
+# was decided by an accident of the consumer's dependency graph. A consumer with a
+# `repo_name = "meridian"` alias got meridian_schemas; one without got brando's own
+# meridian 0.2.3, whose 69-line theme.proto has NO `Typography.display` (field 7)
+# and NO `repeated FontSource fonts` (field 8) -- so every skin that declares its
+# own faces failed the --encode gate. aion had to fork these genrules into its own
+# BUILD file to pin the schema by label.
+#
+# The fix is BOTH halves: depend on meridian_schemas here, and emit the label via
+# Label() in skins/defs.bzl so resolution is brando's own. Changing only the label
+# form would have pinned resolution to the WRONG (0.2.3) schema, deterministically.
+#
+# Pinned to 0.17.0 to match the live consumer (savvifi/aion //brand). Both
+# registries carry through 0.19.0; MVS lets a consumer move up on its own, whereas
+# pinning newest here would drag every consumer with it.
+bazel_dep(name = "meridian_schemas", version = "0.17.0")
 bazel_dep(name = "protobuf", version = "33.4")
 
 # ─── tectonic (brand PDFs) ──────────────────────────────────────────

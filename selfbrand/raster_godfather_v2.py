@@ -26,6 +26,7 @@ from PIL import Image
 from shapely.ops import unary_union
 
 from gen_godfather_v2 import Spec, GodfatherV2, VARIANTS
+from marklib import emit
 from marklib import raster as mraster
 from wordmark_geom import placed_word
 
@@ -99,19 +100,28 @@ def raster_wordmark(background, size):
     return img.resize((size, size), Image.LANCZOS)
 
 
-def main(out_dir):
-    os.makedirs(out_dir, exist_ok=True)
-    for variant, spec in VARIANTS.items():
-        for sz in PNG_SIZES:
-            raster_mark(spec, sz).save(
-                os.path.join(out_dir, f"brando_v2_{variant}_{sz}.png"))
-        print(f"icons brando_v2_{variant}")
-    for bgname, bg in (("wordmark", "ink"), ("wordmark_transparent", "none")):
-        for sz in PNG_SIZES:
-            raster_wordmark(bg, sz).save(
-                os.path.join(out_dir, f"brando_v2_{bgname}_{sz}.png"))
-        print(f"icons brando_v2_{bgname}")
+# The lockup variants and the background each uses. Which variants EXIST is brand
+# content and stays here; which ones to EMIT now comes from the brand_icons rule.
+WORDMARK_VARIANTS = {"wordmark": "ink", "wordmark_transparent": "none"}
+
+
+def main(argv=None):
+    e = emit.parse_args(
+        argv,
+        prefix="brando_v2",
+        variants=list(VARIANTS) + list(WORDMARK_VARIANTS),
+        sizes=PNG_SIZES,
+    )
+    os.makedirs(e.out_dir, exist_ok=True)
+    for variant in e.variants:
+        for sz in e.sizes:
+            if variant in WORDMARK_VARIANTS:
+                img = raster_wordmark(WORDMARK_VARIANTS[variant], sz)
+            else:
+                img = raster_mark(VARIANTS[variant], sz)
+            img.save(os.path.join(e.out_dir, f"{e.prefix}_{variant}_{sz}.png"))
+        print(f"icons {e.prefix}_{variant}")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else ".")
+    main()
