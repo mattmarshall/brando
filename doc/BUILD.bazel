@@ -1,4 +1,4 @@
-load(":defs.bzl", "brand_latex_class")
+load(":defs.bzl", "brand_doc", "brand_latex_class", "brand_resources")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -25,4 +25,25 @@ brand_latex_class(
     classname = "brandofixture",
     main_font = "SpaceGrotesk-Medium.ttf",
     skin = "//skins:fixture_json",
+)
+
+# The resource bundle brando's own fixture doc needs: the generated class plus
+# the shared faces the class names.
+brand_resources(
+    name = "fixture_resources",
+    srcs = [
+        ":fixture_class",
+        "//fonts:SpaceGrotesk-Medium.ttf",
+        "//fonts:SpaceGrotesk-SemiBold.ttf",
+    ],
+)
+
+# brando's dogfood of brand_doc. Rendering a template proves the template
+# renders; only COMPILING a document that calls its macros proves the macros
+# exist. 0.2.0's fv->brand rename passed every test here and broke a consumer's
+# CI with "Undefined control sequence" — this is the gate that would have caught it.
+brand_doc(
+    name = "fixture_doc",
+    main = "testdata/fixture.tex",
+    resources = ":fixture_resources",
 )

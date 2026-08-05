@@ -1,0 +1,28 @@
+% brando's dogfood of brand_doc — the rule that had no in-repo caller.
+%
+% brando 0.2.0 renamed the LaTeX macros off fastverk's `fv` prefix
+% (\fvswatch -> \brandswatch, \fvheader -> \brandheader) and every colour name
+% with them. Nothing in this repo compiled a .tex, so the rename passed every
+% test here and broke fastverk/brand's CI instead, with
+% `onepager.tex:5: Undefined control sequence`.
+%
+% The lesson is narrow and worth stating: rendering a template proves the template
+% RENDERS. It says nothing about whether the macros it defines still have the
+% names their callers use. Only compiling a document that calls them proves that.
+%
+% So this document calls every macro the brand class defines. Rename one again and
+% this fails here, in brando, rather than in a consumer's CI a week later.
+\documentclass{brandofixture}
+\begin{document}
+
+\section{Colour}
+\brandswatch{brandbg}{18181B}\quad
+\brandswatch{brandfg}{FAFAFA}\quad
+\brandswatch{brandaccent}{D4D4D8}\quad
+\brandswatch{brandmuted}{A1A1AA}
+
+\section{Text}
+Body text set in the brand's main font, so the \verb|\setmainfont| path is
+exercised rather than merely templated.
+
+\end{document}
