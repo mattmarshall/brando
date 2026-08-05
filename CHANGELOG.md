@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.4.0 — a brand should start complete, and be publishable
+
+Additive. Every 0.3.0 rule keeps its behavior.
+
+### Added
+
+* **`brand_suite`** — a brand's whole catalog from one macro call. `fastverk`
+  produced seventeen artifact types and `graph`/`savault` produced two, not
+  because those brands wanted less but because each was wired by hand from the
+  same rules and stopped wherever its author's patience did. A brand now opts OUT
+  of what it does not want rather than opting in to each thing it does.
+  `//examples/leangres` is a complete brand in a 26-line BUILD file.
+* **`brand_css`** — Theme to CSS custom properties as a standalone artifact. The
+  projection existed only *inside* `brand_mdbook_theme`, so the only way to get a
+  brand's stylesheet was to also want an mdBook.
+* **`brand_contrast_test`** — `marklib.palette` has had the WCAG checker and a
+  waiver mechanism since 0.2.0 and nothing wrapped it, so no brand ran it in its
+  own build. Every suite now does.
+* **`brand_publish_plan` + `tools/publish_brando.sh`** — distribution. The plan
+  half is hermetic (content-addressed key, URL, SRI `integrity`, a paste-ready
+  MODULE.bazel snippet), so the pin is a build artifact a test checks rather than
+  something the publisher derives by hand. `rules_brand.from_url` REQUIRES
+  `integrity`, and computing an SRI hash manually is the step people skip — which
+  matters, because an unpinned brand means a swapped CDN object restyles every
+  consumer at once, silently. The upload half refuses a plan whose sha does not
+  match its file.
+* **`//examples/leangres` and `//examples/citizen_sh`** — the two brand exercises
+  this work exists for, worked end to end. citizen-sh is the two-surface test:
+  the LaTeX class for its governing document and the stylesheet plus favicon for
+  its docs, from one package.
+* **`//:version.bzl`** — one copy of the version. `MODULE.bazel` cannot `load()`,
+  so a module cannot hand its own version to a BUILD file, which is why
+  `brand_package`'s `brando_version` said `0.2.0` while `MODULE.bazel` said
+  `0.3.0`. That field is stamped into every `.brando` as provenance; a stale one
+  is worse than an absent one. `//:version_test` gates it.
+* **CI**, which brando had none of: nineteen tests that only ever ran on one
+  laptop, for a module six repos depend on.
+
+### Fixed
+
+* **`packed` is now passed to the rasterizer** as `--packed`. It was the last
+  hand-sync hole in the icons path: `brand_icons` DECLARED `.icns`/`.ico` outputs
+  and nothing told the generator to emit them, so the declared and produced sets
+  could disagree — exactly the drift the `--variant`/`--layer` flags removed
+  everywhere else.
+
 ## 0.3.0 — a brand becomes a package
 
 Additive. Every 0.2.0 rule keeps its behavior; the new surface is `brand_package`
