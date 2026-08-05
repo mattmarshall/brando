@@ -1,0 +1,46 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deployment at a time, and never cancel one midway: a half-applied Pages
+# deploy is a broken site rather than a stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build the console
+        run: bazel build //console:site
+      - name: stage it
+        # `bazel-bin` is a symlink into an output base outside the workspace, and
+        # upload-pages-artifact will not follow it. Copy, and drop the read-only
+        # bit Bazel leaves on its outputs.
+        run: |
+          mkdir -p _site
+          cp -L bazel-bin/console/index.html _site/index.html
+          chmod u+w _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

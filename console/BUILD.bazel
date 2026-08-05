@@ -49,3 +49,55 @@ py_test(
     imports = [".."],
     deps = [":build_console_lib"],
 )
+
+# ── the published site ───────────────────────────────────────────────────────
+#
+# brando's brands, rendered as one self-contained page. The builder inlines each
+# mark's SVG, so the output has no external references at all — which is what
+# makes GitHub Pages the right host: static, versioned with the repo, and needing
+# no infrastructure. The same reasoning that moved packages onto Releases.
+#
+# The plan originally had this as a meridian PanelBundle rendered by the fastverk
+# console shell. That would have made a personal project depend on savvifi's
+# console deployment to show its own brands, which is the wrong shape regardless
+# of how good the shell is.
+#
+# Every brand is listed HERE rather than globbed, and that is a boundary rather
+# than a style preference. This page is PUBLIC. The console can render any brand
+# whose skin JSON it is handed, and the fleet's other brands — aion, savvi,
+# fastverk, meridian, tomato — belong to savvifi and other orgs. A glob over
+# whatever skins happen to be reachable would publish someone else's identity on
+# a personal repo's website the first time a dependency brought one into the
+# graph. An explicit list makes that a deliberate line, not a side effect.
+_BRANDS = {
+    "brando": "//skins:brando",
+    "leangres": "//examples/leangres:leangres_skin",
+    "citizen_sh": "//examples/citizen_sh:citizen_sh_skin",
+    "resumarsh": "//examples/resumarsh:resumarsh_skin",
+}
+
+_MARKS = {
+    "brando": "//selfbrand:brando_v2_transparent.svg",
+    "leangres": "//examples/leangres:leangres_transparent.svg",
+    "citizen_sh": "//examples/citizen_sh:citizen_sh_transparent.svg",
+    "resumarsh": "//examples/resumarsh:resumarsh_transparent.svg",
+}
+
+genrule(
+    name = "site",
+    srcs = ["%s_json" % v for v in _BRANDS.values()] + _MARKS.values(),
+    outs = ["index.html"],
+    cmd = (
+        "$(execpath :build) --out $@ " +
+        " ".join([
+            "--skin %s=$(execpath %s_json)" % (k, v)
+            for k, v in _BRANDS.items()
+        ]) + " " +
+        " ".join([
+            "--mark %s=$(execpath %s)" % (k, v)
+            for k, v in _MARKS.items()
+        ])
+    ),
+    tools = [":build"],
+    visibility = ["//visibility:public"],
+)
