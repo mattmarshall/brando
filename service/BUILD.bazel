@@ -69,6 +69,9 @@ py_library(
     deps = [
         "//marklib:palette",
         "//marklib:tokens",
+        # Imported for `_blob_path`. A second definition of where a blob lives
+        # inside an archive is how the manifest and the archive disagree.
+        "//tools:pack_brand_lib",
     ],
 )
 

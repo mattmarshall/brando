@@ -30,6 +30,7 @@ that already has a home — a build.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Dict, List
 
@@ -111,6 +112,80 @@ def render(theme: dict, *, kinds=None) -> Dict[str, bytes]:
         ).encode("utf-8")
 
     return out
+
+
+def package(spec_json: dict, artifacts: Dict[str, bytes], *,
+            brando_version: str = "", spec_binpb: bytes = b"",
+            manifest_binpb: bytes = b"") -> bytes:
+    """Assemble a real `.brando` from rendered artifacts.
+
+    THE ARCHIVE THE SERVICE WRITES IS THE ARCHIVE THE BUILD WRITES. Blob paths
+    come from `tools.pack_brand._blob_path` -- imported, not reimplemented --
+    because a second definition of "where does this blob live" is precisely how
+    the manifest and the archive end up disagreeing about where an asset is,
+    which no consumer could then diagnose. `pack_brand`'s own docstring makes
+    that point about its two modes; the same argument applies across drivers.
+
+    Deterministic in the same way too: fixed mtimes and sorted entries, so a
+    render of an unchanged brand produces identical bytes and every downstream
+    pin stays put.
+    """
+    import zipfile
+    from io import BytesIO
+
+    from tools.pack_brand import _blob_path
+
+    blobs = {_blob_path(b): b for b in artifacts.values()}
+
+    assets = []
+    for logical, blob in sorted(artifacts.items()):
+        path = _blob_path(blob)
+        assets.append({
+            "name": logical,
+            "path": path,
+            "media_type": _MEDIA.get(logical.rsplit(".", 1)[-1], "application/octet-stream"),
+            "size_bytes": str(len(blob)),
+            "sha256": path.split("/", 1)[1],
+        })
+
+    manifest = {
+        "spec": spec_json,
+        "assets": assets,
+        "provenance": {
+            "brando_version": brando_version or "service",
+            "spec_digest": hashlib.sha256(
+                json.dumps(spec_json, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest(),
+        },
+    }
+
+    buf = BytesIO()
+    fixed = (1980, 1, 1, 0, 0, 0)
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        def add(name: str, payload: bytes):
+            info = zipfile.ZipInfo(name, fixed)
+            info.external_attr = 0o644 << 16
+            z.writestr(info, payload)
+
+        # Both encodings, exactly as brand_package writes them: the binpb for
+        # anything with a proto runtime, the JSON for rules_brand's repo rule,
+        # which runs during loading and has neither.
+        if manifest_binpb:
+            add("brand.binpb", manifest_binpb)
+        add("brand.json", (json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
+        for name in sorted(blobs):
+            add(name, blobs[name])
+
+    return buf.getvalue()
+
+
+_MEDIA = {
+    "css": "text/css",
+    "json": "application/json",
+    "svg": "image/svg+xml",
+    "png": "image/png",
+    "binpb": "application/octet-stream",
+}
 
 
 def unrenderable(kinds) -> List[str]:

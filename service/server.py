@@ -45,6 +45,7 @@ class Store:
     def __init__(self):
         self._brands: Dict[str, pb.Brand] = {}
         self._revisions: Dict[str, List[pb.BrandRevision]] = {}
+        self._packages: Dict[str, tuple] = {}
         self._lock = threading.Lock()
 
     def get(self, brand_id: str) -> Optional[pb.Brand]:
@@ -80,6 +81,24 @@ class Store:
 
             self._brands[brand_id] = stored
             return stored
+
+    def put_package(self, brand_id: str, archive: bytes) -> str:
+        """Store a rendered `.brando` and return its digest.
+
+        Content-addressed, so re-rendering an unchanged brand overwrites nothing
+        and a URL for a package never changes meaning -- the same property the
+        published packages have, kept here so the service does not become the one
+        place where a brand's bytes are mutable.
+        """
+        import hashlib
+        digest = hashlib.sha256(archive).hexdigest()
+        with self._lock:
+            self._packages[brand_id] = (digest, archive)
+        return digest
+
+    def get_package(self, brand_id: str):
+        with self._lock:
+            return self._packages.get(brand_id)
 
     def revisions(self, brand_id: str) -> List[pb.BrandRevision]:
         with self._lock:
@@ -292,8 +311,15 @@ class RenderServicer(pb_grpc.RenderServiceServicer):
                 "produce %s (a mark is brand-specific geometry that lives in a "
                 "repo, not in the spec)" % ", ".join(missing))
 
-        theme = json_format.MessageToDict(brand.spec.theme)
+        theme = json_format.MessageToDict(
+            brand.spec.theme, preserving_proto_field_name=True)
         artifacts = render_core.render(theme, kinds=requested)
+
+        # The manifest, as a real BrandPackage. The service HAS a proto runtime,
+        # unlike the stdlib-only build path that has to shell out to
+        # `protoc --encode`, so it serializes directly.
+        manifest = data.BrandPackage()
+        manifest.spec.CopyFrom(brand.spec)
 
         response = pb.RenderBrandResponse()
         # `blob`, not `data`: `data` is the brand_pb2 module imported at the top,
@@ -307,6 +333,29 @@ class RenderServicer(pb_grpc.RenderServiceServicer):
                 name=logical, size_bytes=len(blob),
                 sha256=hashlib.sha256(blob).hexdigest())
         response.brand_package.spec.CopyFrom(brand.spec)
+        manifest.CopyFrom(response.brand_package)
+
+        # A REAL archive, in the same format brand_package writes -- so what the
+        # service produces is what rules_brand consumes, with no second reader.
+        archive = render_core.package(
+            # preserving_proto_field_name, because the .brando manifest uses
+            # PROTO field names -- `display_name`, `accent_strong` -- and
+            # MessageToDict emits camelCase by default. rules_brand reads
+            # `spec.display_name`, so without this the service produces an
+            # archive that unpacks, generates every target, and quietly has no
+            # brand name. Found by feeding a service-rendered package to
+            # rules_brand; every structure test passed, because they checked
+            # paths rather than field naming.
+            json_format.MessageToDict(brand.spec, preserving_proto_field_name=True),
+            artifacts,
+            brando_version="service",
+            manifest_binpb=manifest.SerializeToString(),
+        )
+        digest = self._store.put_package(_brand_id(request.name), archive)
+        response.package_uri = "brands/%s/assets/%s" % (
+            _brand_id(request.name), digest[:16])
+        response.package_integrity = "sha256-" + __import__("base64").b64encode(
+            bytes.fromhex(digest)).decode("ascii")
 
         from google.longrunning import operations_pb2
         from google.protobuf import any_pb2

@@ -171,3 +171,100 @@ class ServerTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PackageTest(ServerTest):
+    """The archive a render produces must be the archive rules_brand consumes.
+
+    A service that emitted a *nearly* correct archive would fail in the consumer,
+    inside a repository rule, during loading -- about the worst place a format
+    error can surface, because the error names a checksum or a missing file
+    rather than the producer.
+    """
+
+    def _render(self):
+        op = self.render.RenderBrand(pb.RenderBrandRequest(name="brands/t"))
+        response = pb.RenderBrandResponse()
+        op.response.Unpack(response)
+        return response
+
+    def test_a_render_produces_a_real_archive(self):
+        import io
+        import zipfile
+
+        self._create()
+        self._render()
+        _digest, archive = self.store.get_package("t")
+        with zipfile.ZipFile(io.BytesIO(archive)) as z:
+            names = set(z.namelist())
+        # Exactly what rules_brand's repo rule opens: the JSON manifest it can
+        # actually parse (Starlark has json.decode and no proto runtime), the
+        # binpb for anything that does, and content-addressed blobs.
+        self.assertIn("brand.json", names)
+        self.assertIn("brand.binpb", names)
+        self.assertTrue([n for n in names if n.startswith("assets/")])
+
+    def test_the_manifest_and_the_archive_agree_about_every_blob(self):
+        """The disagreement no consumer could diagnose: a manifest naming a path
+        the archive does not contain. `_blob_path` is imported from pack_brand
+        rather than reimplemented precisely to make this impossible."""
+        import io
+        import json as _json
+        import zipfile
+
+        self._create()
+        self._render()
+        _digest, archive = self.store.get_package("t")
+        with zipfile.ZipFile(io.BytesIO(archive)) as z:
+            manifest = _json.loads(z.read("brand.json"))
+            names = set(z.namelist())
+        self.assertTrue(manifest["assets"], "the manifest lists no assets")
+        for asset in manifest["assets"]:
+            self.assertIn(asset["path"], names,
+                          "%s points at a blob the archive lacks" % asset["name"])
+
+    def test_the_response_pin_matches_the_stored_bytes(self):
+        """The integrity a caller would paste has to describe what was stored.
+        A mismatch resolves and then fails the consumer's fetch with what reads
+        as a corrupted download."""
+        import base64
+        import hashlib
+
+        self._create()
+        response = self._render()
+        _digest, archive = self.store.get_package("t")
+        expected = "sha256-" + base64.b64encode(
+            hashlib.sha256(archive).digest()).decode("ascii")
+        self.assertEqual(expected, response.package_integrity)
+
+    def test_rendering_twice_produces_identical_bytes(self):
+        """Deterministic, like the build path: an unchanged brand must not churn
+        every downstream pin for nothing."""
+        self._create()
+        self._render()
+        first = self.store.get_package("t")[1]
+        self._render()
+        self.assertEqual(first, self.store.get_package("t")[1])
+
+    def test_the_manifest_uses_PROTO_field_names_not_camelCase(self):
+        """The bug the structure tests could not see.
+
+        MessageToDict emits camelCase by default; the .brando manifest uses proto
+        field names, and rules_brand reads `spec.display_name`. Without
+        preserving_proto_field_name the archive unpacks, generates every target,
+        and quietly has no brand name -- found only by feeding a service-rendered
+        package to rules_brand and noticing an empty DISPLAY_NAME.
+        """
+        import io
+        import json as _json
+        import zipfile
+
+        self._create()
+        self._render()
+        _digest, archive = self.store.get_package("t")
+        with zipfile.ZipFile(io.BytesIO(archive)) as z:
+            manifest = _json.loads(z.read("brand.json"))
+        self.assertIn("display_name", manifest["spec"],
+                      "the manifest is camelCase; rules_brand reads snake_case")
+        self.assertNotIn("displayName", manifest["spec"])
+        self.assertEqual("t", manifest["spec"]["display_name"])
