@@ -42,3 +42,17 @@ py_binary(
     srcs = ["pack_brand.py"],
     imports = [".."],
 )
+
+py_library(
+    name = "pack_brand_lib",
+    srcs = ["pack_brand.py"],
+    imports = [".."],
+)
+
+py_test(
+    name = "pack_brand_test",
+    size = "small",
+    srcs = ["pack_brand_test.py"],
+    imports = [".."],
+    deps = [":pack_brand_lib"],
+)

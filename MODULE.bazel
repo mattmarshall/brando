@@ -60,6 +60,11 @@ bazel_dep(name = "rules_tectonic", version = "0.2.0")
 bazel_dep(name = "meridian_schemas", version = "0.24.0")
 bazel_dep(name = "protobuf", version = "33.4")
 
+# For ProtoInfo in //tools/proto. Loading it from @rules_proto rather than the
+# bare global is deliberate: the global was removed in strict Bazel 9, and naming
+# it caught meridian out at its own registry publish.
+bazel_dep(name = "rules_proto", version = "7.1.0")
+
 # rules_aip — AIP proto linting for brando.v1 (the .brando package format). It is
 # a LINTING toolkit only; its README puts stub generation explicitly out of scope,
 # so this brings an api-linter test and the googleapis dep groups, nothing more.

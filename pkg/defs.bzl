@@ -24,6 +24,7 @@ _PACK = Label("//tools:pack_brand")
 _PROTOC = Label("@protobuf//:protoc")
 _DESCRIPTOR_SET = Label("//proto/brando/v1:brand_descriptor_set")
 _MESSAGE = "brando.v1.BrandPackage"
+_PROTO_FILE = "brando/v1/brand.proto"
 
 def _asset_arg(name, target, kind = None, variant = None, size_px = None, mode = None):
     """One `--asset` argument. Semicolon-separated because a logical name may
@@ -83,19 +84,20 @@ def brand_package(
             mode = meta.get("mode"),
         ))
 
-    # 1. Stage the blobs and write the manifest textproto.
+    args = " ".join(["--asset '%s'" % a for a in asset_args])
+
+    # 1. Hash every asset and write the manifest as a textproto.
     native.genrule(
-        name = "%s_staged" % name,
+        name = "%s_manifest_textpb" % name,
         srcs = [spec] + labels,
-        outs = ["%s_manifest.textpb" % name, "%s_staged.d" % name],
+        outs = ["%s_manifest.textpb" % name],
         cmd = (
-            "$(execpath %s) " % _PACK +
+            "$(execpath %s) manifest " % _PACK +
             "--spec $(execpath %s) " % spec +
-            "--out_manifest $(location %s_manifest.textpb) " % name +
-            "--staged_dir $(location %s_staged.d) " % name +
+            "--out $@ " +
             "--brando_version %s " % (brando_version or "unknown") +
             ("--source_repo %s " % source_repo if source_repo else "") +
-            " ".join(["--asset '%s'" % a for a in asset_args])
+            args
         ),
         tools = [_PACK],
         visibility = visibility,
@@ -114,29 +116,29 @@ def brand_package(
             "$(execpath %s) " % _PROTOC +
             "--encode=%s " % _MESSAGE +
             "--descriptor_set_in=$(execpath %s) " % _DESCRIPTOR_SET +
-            "%s " % _MESSAGE +
-            "< $(location %s_manifest.textpb) > $@" % name
+            # The trailing argument is the FILE, not the message — passing the
+            # message name here yields "Could not find file in descriptor
+            # database: brando.v1.BrandPackage".
+            "%s " % _PROTO_FILE +
+            "< $(execpath %s_manifest.textpb) > $@" % name
         ),
         tools = [_PROTOC],
         visibility = visibility,
     )
 
-    # 3. Zip the staged blobs together with the encoded manifest.
+    # 3. Write the archive: the encoded manifest plus every blob, content-addressed.
+    #    Deterministic (fixed mtimes, sorted entries) so two builds of the same
+    #    brand produce identical bytes.
     native.genrule(
         name = name,
-        srcs = [
-            "%s_brand.binpb" % name,
-            "%s_staged.d" % name,
-        ],
+        srcs = ["%s_brand.binpb" % name] + labels,
         outs = ["%s.brando" % name],
         cmd = (
-            "set -e; " +
-            "staged=$(location %s_staged.d); " % name +
-            "cp $(location %s_brand.binpb) $$staged/brand.binpb; " % name +
-            # -X drops extra attributes so the archive is reproducible; the zip is
-            # content-addressed inside, and a timestamp-bearing wrapper would make
-            # two identical brands hash differently.
-            "(cd $$staged && zip -q -r -X -D - . ) > $@"
+            "$(execpath %s) zip " % _PACK +
+            "--manifest $(execpath %s_brand.binpb) " % name +
+            "--out $@ " +
+            args
         ),
+        tools = [_PACK],
         visibility = visibility,
     )

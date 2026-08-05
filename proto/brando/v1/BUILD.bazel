@@ -9,6 +9,7 @@ api-linter test, and any language bindings are a separate, explicit choice.
 which is what lets AIP-191 pass unwaived.
 """
 
+load("//tools/proto:defs.bzl", "proto_descriptor_set")
 load("@rules_aip//aip:defs.bzl", "AIP_WKT_DEPS", "aip_proto_library", "aip_proto_lint")
 
 package(default_visibility = ["//visibility:public"])
@@ -56,9 +57,7 @@ test_suite(
 # meridian's theme.proto). brand_package feeds this to `protoc --encode` with
 # --descriptor_set_in, so encoding a manifest needs no proto_path plumbing and no
 # access to the .proto sources in the consuming build.
-genrule(
+proto_descriptor_set(
     name = "brand_descriptor_set",
-    srcs = [":brand_proto"],
-    outs = ["brand.descset"],
-    cmd = "cp $< $@",
+    proto = ":brand_proto",
 )

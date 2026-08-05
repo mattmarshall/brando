@@ -18,8 +18,19 @@ writes `manifest.textpb` and the rule pipes it through `protoc --encode`, exactl
 as brand_skin does for a skin. protoc then doubles as the validation gate — a
 manifest that does not match brando.v1 fails the build rather than shipping.
 
-CLI: pack_brand.py --spec S --out-manifest M --staged-dir D
-                   --asset 'NAME=PATH[;kind=K][;variant=V][;size_px=N][;mode=M]'...
+TWO MODES, ONE HASHER. `manifest` writes the textproto; `zip` writes the archive.
+They live in one file so the content-addressing is computed by the same function
+in both — a second implementation of "what is this blob called" is a way for the
+manifest and the archive to disagree about where an asset is, which no consumer
+could then diagnose.
+
+(Two invocations rather than one because a genrule cannot declare a directory
+output, and the manifest has to pass through `protoc --encode` in between.)
+
+CLI: pack_brand.py manifest --spec S --out M --asset '...'...
+     pack_brand.py zip --manifest brand.binpb --out A --asset '...'...
+
+     --asset 'NAME=PATH[;kind=K][;variant=V][;size_px=N][;mode=M]'
 """
 from __future__ import annotations
 
@@ -69,36 +80,25 @@ def _parse_asset(spec: str) -> Dict[str, str]:
     return out
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--spec", required=True, help="the brand's BrandSpec textproto")
-    ap.add_argument("--out_manifest", required=True)
-    ap.add_argument("--staged_dir", required=True, help="where assets/<sha> is written")
-    ap.add_argument("--asset", action="append", default=[])
-    ap.add_argument("--brando_version", default="")
-    ap.add_argument("--source_repo", default="")
-    ap.add_argument("--source_commit", default="")
-    args = ap.parse_args(argv)
+def _blob_path(data: bytes) -> str:
+    """Where a blob lives inside the archive. THE one definition."""
+    return "assets/" + hashlib.sha256(data).hexdigest()
 
-    assets_dir = os.path.join(args.staged_dir, "assets")
-    os.makedirs(assets_dir, exist_ok=True)
 
+def _manifest(args) -> int:
     entries: List[str] = []
     seen = set()
     for raw in args.asset:
         a = _parse_asset(raw)
         with open(a["path"], "rb") as fh:
             data = fh.read()
-        digest = hashlib.sha256(data).hexdigest()
-        if digest not in seen:
-            # Deliberately NOT a copy per logical name: identical bytes land once.
-            with open(os.path.join(assets_dir, digest), "wb") as fh:
-                fh.write(data)
-            seen.add(digest)
+        blob = _blob_path(data)
+        digest = blob.split("/", 1)[1]
+        seen.add(digest)
 
         fields = [
             "    name: %s" % _quote(a["name"]),
-            "    path: %s" % _quote("assets/" + digest),
+            "    path: %s" % _quote(blob),
             "    media_type: %s" % _quote(_media_type(a["path"])),
             "    size_bytes: %d" % len(data),
             "    sha256: %s" % _quote(digest),
@@ -140,11 +140,62 @@ def main(argv=None) -> int:
     manifest = "\n".join(
         ["spec {", spec_block, "}"] + entries + provenance
     ) + "\n"
-    with open(args.out_manifest, "w", encoding="utf-8") as fh:
+    with open(args.out, "w", encoding="utf-8") as fh:
         fh.write(manifest)
 
     print("pack_brand: %d asset(s), %d unique blob(s)" % (len(args.asset), len(seen)))
     return 0
+
+
+def _zip(args) -> int:
+    import zipfile
+
+    # Deterministic: a fixed timestamp and sorted entries, so two builds of the
+    # same brand produce the same bytes. The archive is content-addressed inside,
+    # and a wrapper that varied by clock would defeat that.
+    fixed = (1980, 1, 1, 0, 0, 0)
+    blobs = {}
+    for raw in args.asset:
+        a = _parse_asset(raw)
+        with open(a["path"], "rb") as fh:
+            data = fh.read()
+        blobs[_blob_path(data)] = data
+
+    with open(args.manifest, "rb") as fh:
+        manifest = fh.read()
+
+    with zipfile.ZipFile(args.out, "w", zipfile.ZIP_DEFLATED) as z:
+        info = zipfile.ZipInfo("brand.binpb", fixed)
+        info.external_attr = 0o644 << 16
+        z.writestr(info, manifest)
+        for name in sorted(blobs):
+            info = zipfile.ZipInfo(name, fixed)
+            info.external_attr = 0o644 << 16
+            z.writestr(info, blobs[name])
+
+    print("pack_brand: wrote %s (%d blob(s))" % (args.out, len(blobs)))
+    return 0
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    sub = ap.add_subparsers(dest="mode", required=True)
+
+    m = sub.add_parser("manifest")
+    m.add_argument("--spec", required=True, help="the brand's BrandSpec textproto")
+    m.add_argument("--out", required=True)
+    m.add_argument("--asset", action="append", default=[])
+    m.add_argument("--brando_version", default="")
+    m.add_argument("--source_repo", default="")
+    m.add_argument("--source_commit", default="")
+
+    z = sub.add_parser("zip")
+    z.add_argument("--manifest", required=True)
+    z.add_argument("--out", required=True)
+    z.add_argument("--asset", action="append", default=[])
+
+    args = ap.parse_args(argv)
+    return _manifest(args) if args.mode == "manifest" else _zip(args)
 
 
 if __name__ == "__main__":

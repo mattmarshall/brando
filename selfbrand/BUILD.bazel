@@ -1,4 +1,4 @@
-load("@brando//:defs.bzl", "brand_icons", "brand_svgs", "brand_wordmark_glyphs")
+load("@brando//:defs.bzl", "brand_icons", "brand_package", "brand_svgs", "brand_wordmark_glyphs")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@brando_pip//:requirements.bzl", "requirement")
 
@@ -217,4 +217,81 @@ brand_wordmark_glyphs(
         "brando_lockup_dark.svg",
         "brando_lockup_light.svg",
     ],
+)
+
+# ---- brando's own .brando archive ----
+#
+# The dogfood for brand_package, and the first .brando anywhere. It replaces
+# nothing here because brando had no asset bundle; the two brands that DID have
+# one (aion-brand-assets.zip, tbzl-brand-assets.zip) hand-assembled it with
+# copy-pasted pkg_files blocks, two different layouts, and no manifest inside.
+#
+# The keys are the LOGICAL names a consumer asks for. They are a stable API —
+# rules_brand exposes each one as a target — so they deliberately do not encode
+# brando's internal filenames.
+brand_package(
+    name = "brando_package",
+    assets = {
+        "theme.binpb": {
+            "kind": "ARTIFACT_KIND_THEME_BINPB",
+            "label": "//skins:brando_binpb",
+        },
+        "theme.json": {
+            "kind": "ARTIFACT_KIND_THEME_JSON",
+            "label": "//skins:brando_json",
+        },
+        "mark.svg": {
+            "kind": "ARTIFACT_KIND_MARK_SVG",
+            "label": "brando_v2_transparent.svg",
+            "variant": "transparent",
+        },
+        "mark-inkbg.svg": {
+            "kind": "ARTIFACT_KIND_MARK_SVG",
+            "label": "brando_v2_inkbg.svg",
+            "variant": "inkbg",
+        },
+        "icon-512.png": {
+            "kind": "ARTIFACT_KIND_MARK_PNG",
+            "label": "brando_v2_transparent_512.png",
+            "size_px": 512,
+            "variant": "transparent",
+        },
+        "icon-1024.png": {
+            "kind": "ARTIFACT_KIND_MARK_PNG",
+            "label": "brando_v2_transparent_1024.png",
+            "size_px": 1024,
+            "variant": "transparent",
+        },
+        "wordmark-dark.svg": {
+            "kind": "ARTIFACT_KIND_WORDMARK",
+            "label": "brando_wordmark_dark.svg",
+            "mode": "dark",
+        },
+        "wordmark-light.svg": {
+            "kind": "ARTIFACT_KIND_WORDMARK",
+            "label": "brando_wordmark_light.svg",
+            "mode": "light",
+        },
+        "lockup-dark.svg": {
+            "kind": "ARTIFACT_KIND_LOCKUP",
+            "label": "brando_lockup_dark.svg",
+            "mode": "dark",
+        },
+        "lockup-light.svg": {
+            "kind": "ARTIFACT_KIND_LOCKUP",
+            "label": "brando_lockup_light.svg",
+            "mode": "light",
+        },
+        "fonts/SpaceGrotesk-Medium.ttf": {
+            "kind": "ARTIFACT_KIND_FONTS",
+            "label": "//fonts:SpaceGrotesk-Medium.ttf",
+        },
+        "fonts/OFL.txt": {
+            "kind": "ARTIFACT_KIND_FONTS",
+            "label": "//fonts:OFL.txt",
+        },
+    },
+    brando_version = "0.2.0",
+    source_repo = "mattmarshall/brando",
+    spec = "brando.textproto",
 )
