@@ -43,6 +43,21 @@ _BRAND_CSS = {
     "resumarsh": "//examples/resumarsh:resumarsh_css",
 }
 
+py_library(
+    name = "studio",
+    srcs = ["studio.py"],
+    imports = [".."],
+    deps = [":render_core"],
+)
+
+py_test(
+    name = "studio_test",
+    size = "small",
+    srcs = ["studio_test.py"],
+    imports = [".."],
+    deps = [":studio"],
+)
+
 py_test(
     name = "conformance_test",
     size = "small",
