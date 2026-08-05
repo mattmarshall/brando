@@ -83,6 +83,9 @@ def brand_suite(
         spec,
         skin,
         mark = None,
+        rasterizer = None,
+        packed = None,
+        bg_variants = None,
         variants = None,
         layers = None,
         sizes = None,
@@ -116,16 +119,31 @@ def brand_suite(
         protobuf runtime in the consumer, which is a real piece of work and not
         this macro's job. Until then, authoring both is honest; conflating them
         would silently encode the wrong message.
+      rasterizer: the `py_binary` emitting PNG icons. Separate from `mark`
+        because the two produce different artifact kinds from one geometry — it
+        should IMPORT the generator rather than redraw the mark, which is what
+        five brands in this fleet did, invisibly.
       mark: a `py_binary` drawing the mark, written against `marklib`. Optional:
         a brand may legitimately be type-only before its mark exists, and this
         should not block it from having a theme, a stylesheet and a package.
       variants: mark variants (e.g. `["flat", "mono", "inkbg"]`).
-      layers: layer names the generator emits per variant.
+      layers: layer names the generator emits per variant. Do NOT list `bg.svg`
+        here — see `bg_variants`.
+      bg_variants: the variants that have a background. A background layer is
+        real structure rather than an exception to paper over: `transparent` has
+        none, and the variants x layers grid would otherwise declare a
+        `transparent.bg.svg` the generator correctly never writes. Defaults to
+        every variant except one literally named `transparent`.
       sizes: PNG sizes to rasterize.
       wordmark: an optional `filegroup`/target of wordmark artifacts.
-      favicon: the `.ico` for the mdBook theme. Defaults to the primary variant's
-        icon when `mark` is given; without either, the mdBook theme is skipped
-        rather than failed — a brand with no mark yet still wants its stylesheet.
+      packed: variants that additionally get `.icns` and `.ico`. Defaults to the
+        primary variant, because an mdBook theme needs a favicon and `.ico` is
+        the only artifact that is one. A list rather than a bool because brands
+        genuinely differ about which icon a desktop should install.
+      favicon: the `.ico` for the mdBook theme. Defaults to the primary variant's,
+        which is why `packed` defaults as it does. With no rasterizer at all the
+        mdBook theme is skipped rather than failed — a brand with no mark yet
+        still wants its stylesheet, its LaTeX class and its package.
       font_family/medium_ttf/semibold_ttf: the web font. Defaults to brando's
         shared Space Grotesk, which is what every brand in the fleet already
         ships — byte-identical, three times over, ~530 KB duplicated.
@@ -182,29 +200,43 @@ def brand_suite(
         },
     }
 
+    primary = (variants or ["flat"])[0]
+
     if mark:
+        bg = bg_variants if bg_variants != None else [
+            v for v in (variants or []) if v != "transparent"
+        ]
         brand_svgs(
             name = "%s_svgs" % name,
             generator = mark,
             variants = variants,
             layers = layers,
+            extra_outs = ["%s_%s.bg.svg" % (name, v) for v in bg],
             prefix = name,
             visibility = visibility,
         )
-        brand_icons(
-            name = "%s_icons" % name,
-            generator = mark,
-            variants = variants,
-            sizes = sizes,
-            prefix = name,
-            visibility = visibility,
-        )
+        packed = packed if packed != None else [primary]
+        if rasterizer:
+            brand_icons(
+                name = "%s_icons" % name,
+                rasterizer = rasterizer,
+                variants = variants,
+                sizes = sizes,
+                packed = packed,
+                prefix = name,
+                visibility = visibility,
+            )
+            for variant in packed:
+                assets["favicon-%s.ico" % variant] = {
+                    "label": "%s_%s.ico" % (name, variant),
+                    "kind": "ARTIFACT_KIND_FAVICON",
+                    "variant": variant,
+                }
 
         # The composed mark of the FIRST variant is the brand's mark, by
         # convention — a brand lists its primary treatment first. Naming it
         # `mark.svg` in the package is what lets a consumer ask for "the mark"
         # without knowing this brand's variant vocabulary.
-        primary = (variants or ["flat"])[0]
         assets["mark.svg"] = {
             "label": "%s_%s.svg" % (name, primary),
             "kind": "ARTIFACT_KIND_MARK_SVG",
@@ -216,7 +248,7 @@ def brand_suite(
                 "kind": "ARTIFACT_KIND_MARK_SVG",
                 "variant": variant,
             }
-        for size in (sizes or []):
+        for size in (sizes or []) if rasterizer else []:
             assets["icon-%d.png" % size] = {
                 "label": "%s_%s_%d.png" % (name, primary, size),
                 "kind": "ARTIFACT_KIND_MARK_PNG",
@@ -233,11 +265,11 @@ def brand_suite(
     # An mdBook theme needs a favicon, so a brand with no mark cannot have one
     # yet. Skipping is the right failure: it should not block the theme, the
     # stylesheet, the LaTeX class or the package, all of which are mark-free.
-    if mdbook and (favicon or mark):
+    if mdbook and (favicon or rasterizer):
         brand_mdbook_theme(
             name = "%s_mdbook" % name,
             skin = skin_json,
-            favicon = favicon or ":%s_icons" % name,
+            favicon = favicon or "%s_%s.ico" % (name, primary),
             medium_ttf = medium_ttf or _MEDIUM_TTF,
             semibold_ttf = semibold_ttf or _SEMIBOLD_TTF,
             font_family = font_family,
@@ -246,14 +278,35 @@ def brand_suite(
         )
 
     if latex:
+        classname = latex_classname or name
         brand_latex_class(
             name = "%s_latex" % name,
             skin = skin_json,
-            classname = latex_classname or name,
+            classname = classname,
             main_font = font_family,
             bold_font = bold_font or (font_family + " SemiBold"),
             visibility = visibility,
         )
+        # All three emitted files, not just the article class. 0.2.0's rename
+        # broke the beamer theme precisely because only one of the three was
+        # exercised, and a package that carries one of three is the same mistake
+        # in a different place: a consumer wanting a deck would find nothing.
+        for logical, out in (
+            ("latex/%s.cls" % classname, "%s.cls" % classname),
+            ("latex/%s-onepager.cls" % classname, "%s-onepager.cls" % classname),
+            ("latex/beamertheme%s.sty" % classname, "beamertheme%s.sty" % classname),
+        ):
+            assets[logical] = {
+                "label": out,
+                "kind": "ARTIFACT_KIND_LATEX_CLASS",
+            }
+
+    # KNOWN GAP: the mdBook theme is a DIRECTORY, and `brand_package` addresses
+    # single files — content addressing needs bytes to hash. So `:<name>_mdbook`
+    # is built and usable in-repo but does not travel in the archive yet. Packing
+    # it means either flattening the directory into named entries or teaching the
+    # packer about tree artifacts; stating the gap beats shipping a package whose
+    # Catalog claims an MDBOOK_THEME it does not contain.
 
     for logical, value in (extra_assets or {}).items():
         assets[logical] = value

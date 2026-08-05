@@ -1,0 +1,44 @@
+# citizen-sh — the BrandSpec.
+id: "citizen_sh"
+display_name: "citizen-sh"
+
+identity {
+  legal_name: "citizen-sh"
+  tagline: "The town library becomes the town data center."
+  positioning:
+    "A full-stack data platform, from hardware to application, that ordinary "
+    "people can trust with their data -- Lean-authoritative, formally proven "
+    "where it matters most, and secure from the silicon up."
+  story:
+    "For a century and a half the public library has been civic infrastructure "
+    "almost everyone takes for granted: open to all, governed in the public "
+    "interest, trusted to hold something valuable without exploiting the people "
+    "who use it. The valuable thing a community holds is now its data, and the "
+    "infrastructure holding it is overwhelmingly private and optimized for "
+    "extraction. citizen-sh starts from the idea that the library should evolve "
+    "into the place a community keeps its own records."
+  voice: "Civic, not corporate. This is infrastructure, not a product launch."
+  voice:
+    "State what is PROVEN, what is TESTED and what is neither, and never let one "
+    "borrow another's standing. The whole claim is verifiability."
+  voice:
+    "Plain language. A roadmap that needs a systems background to read has "
+    "failed the people it is accountable to."
+  usage_rules:
+    "The accent is verdigris, the patina of oxidized copper. Do not substitute a "
+    "red or a blue: a civic project cannot carry a partisan colour by accident."
+  usage_rules:
+    "The mark reads as a portico AND as the stack. Do not separate the base from "
+    "the columns -- the foundation layer is the one citizen-sh actually provides."
+  usage_rules: "Set the name lowercase, with the hyphen. It is a shell prompt, not a proper noun."
+}
+
+catalog {
+  kinds: ARTIFACT_KIND_THEME_BINPB
+  kinds: ARTIFACT_KIND_THEME_JSON
+  kinds: ARTIFACT_KIND_THEME_CSS
+  kinds: ARTIFACT_KIND_MARK_SVG
+  kinds: ARTIFACT_KIND_MARK_PNG
+  kinds: ARTIFACT_KIND_MDBOOK_THEME
+  kinds: ARTIFACT_KIND_LATEX_CLASS
+}

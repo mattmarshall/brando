@@ -1,0 +1,66 @@
+"""citizen-sh — the second of the two brand exercises this work exists for.
+
+Unlike leangres this one has a MARK, and that is what makes it the harder test:
+an mdBook theme needs a favicon, so a brand with no mark cannot have one, and
+citizen-sh wants BOTH doc surfaces — the mdBook theme for `docs/` and the LaTeX
+class for the governing document its roadmap calls for. Two surfaces from one
+source is the property `brand_suite` is claiming, and this is where it is checked.
+"""
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//:version.bzl", "VERSION")
+load("//pkg:suite.bzl", "brand_suite")
+
+py_binary(
+    name = "gen_mark",
+    srcs = ["gen_mark.py"],
+    deps = ["//marklib"],
+)
+
+py_binary(
+    name = "raster_mark",
+    srcs = ["raster_mark.py"],
+    deps = [
+        ":gen_mark_lib",
+        "//marklib",
+        "//marklib:raster",
+    ],
+)
+
+py_library(
+    name = "gen_mark_lib",
+    srcs = ["gen_mark.py"],
+    # The rasterizer does `from gen_mark import ...`, so the module has to be
+    # importable by its bare name rather than as a package path.
+    imports = ["."],
+    deps = ["//marklib"],
+)
+
+brand_suite(
+    name = "citizen_sh",
+    brando_version = VERSION,
+    layers = [
+        "base.svg",
+        "columns.svg",
+        "roof.svg",
+        "svg",
+    ],
+    mark = ":gen_mark",
+    rasterizer = ":raster_mark",
+    publish_base_url = "https://static.aion.savvifi.dev",
+    sizes = [
+        # 256 is not decorative: `.ico` is packed from it, and render_set fails
+        # loudly rather than quietly if the size it needs was never rendered.
+        256,
+        512,
+        1024,
+    ],
+    skin = "citizen_sh.textpb",
+    source_repo = "citizen-sh/citizen-sh",
+    spec = "citizen_sh.textproto",
+    variants = [
+        "flat",
+        "inkbg",
+        "transparent",
+    ],
+)

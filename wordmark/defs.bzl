@@ -46,7 +46,7 @@ def _icon_outs(prefix, variants, sizes, packed):
         outs.append("%s_%s.ico" % (prefix, variant))
     return outs
 
-def _emit_args(prefix, variants = None, layers = None, sizes = None):
+def _emit_args(prefix, variants = None, layers = None, sizes = None, packed = None):
     """The flags a generator reads instead of carrying its own constants."""
     args = ["--prefix %s" % prefix]
     for variant in variants or []:
@@ -55,6 +55,8 @@ def _emit_args(prefix, variants = None, layers = None, sizes = None):
         args.append("--layer %s" % layer)
     for size in sizes or []:
         args.append("--size %d" % size)
+    for variant in packed or []:
+        args.append("--packed %s" % variant)
     return " ".join(args)
 
 def _check_one_source_of_truth(name, outs, variants):
@@ -124,7 +126,7 @@ def brand_icons(
     _check_one_source_of_truth(name, outs, variants)
     if variants:
         outs = _icon_outs(prefix, variants, sizes or [], packed) + extra_outs
-        args = " " + _emit_args(prefix, variants = variants, sizes = sizes)
+        args = " " + _emit_args(prefix, variants = variants, sizes = sizes, packed = packed)
     else:
         args = ""
 

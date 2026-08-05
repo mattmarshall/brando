@@ -1,0 +1,82 @@
+# citizen-sh — civic infrastructure, from the silicon up.
+#
+# A FIRST DRAFT, not a decided identity.
+#
+# The reasoning. citizen-sh's thesis is that the town library becomes the town
+# data center: public, governed in the open, trusted to hold something valuable
+# without exploiting the people who use it. So the palette is deliberately
+# INSTITUTIONAL rather than technological — nothing here should read as a SaaS
+# product, because the promise being made is a civic one.
+#
+# The accent is VERDIGRIS, the patina of oxidized copper: library roofs, civic
+# statuary, the Statue of Liberty. Three reasons it earns the place. It is the
+# literal colour of public infrastructure that has lasted. It is non-partisan,
+# which matters for a civic project in a way it does not for a product — a red
+# or a blue accent carries meaning nobody chose. And it is the colour of a
+# material that IMPROVES with exposure, which is the argument for building in
+# the open.
+#
+# Ground is warm paper rather than cool grey: documents, not dashboards.
+id: "citizen_sh"
+display_name: "citizen-sh"
+
+light {
+  bg: "#FBFAF7"            # warm paper, not a cool UI grey
+  surface: "#F2F0EA"
+  fg: "#16181A"
+  muted: "#55595C"
+  accent: "#1F6F63"        # verdigris, darkened until it is readable AS TEXT
+  accent_strong: "#12463E"
+  on_accent: "#FFFFFF"
+  border: "#DCD8CE"
+  danger: "#A33327"
+  success: "#1F6F63"
+  warning: "#8A6320"
+  info: "#28596E"
+  code_fg: "#155048"
+}
+
+dark {
+  bg: "#14171A"
+  surface: "#1D2226"
+  fg: "#ECEAE4"
+  muted: "#9BA1A6"
+  accent: "#5FB8A6"        # the patina, lifted for a dark ground
+  accent_strong: "#8FD4C5"
+  on_accent: "#0A1F1B"
+  border: "#2C3438"
+  danger: "#E08276"
+  success: "#5FB8A6"
+  warning: "#DDB367"
+  info: "#7FB2CA"
+  code_fg: "#9FD6C8"
+}
+
+typography {
+  sans: "Space Grotesk"
+  display: "Space Grotesk"
+  mono: "JetBrains Mono"
+  heading_weight: 600
+  body_weight: 400
+  heading_tracking: "-0.01em"
+  base_size_px: 16
+  # Only faces brando actually ships are named. A governing document arguably
+  # wants a SERIF for display, and that is a real open question -- but naming a
+  # face the package does not carry is the documented silent-fallback failure,
+  # so it stays unnamed until it is shipped.
+  fonts {
+    family: "Space Grotesk"
+    weight: "500"
+    src_uri: "https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPb54C-s.woff2"
+  }
+  fonts {
+    family: "Space Grotesk"
+    weight: "600"
+    src_uri: "https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPbx4C-s.woff2"
+  }
+}
+
+metrics {
+  radius_px: 4
+  unit_px: 8
+}
