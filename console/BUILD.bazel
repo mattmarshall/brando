@@ -1,0 +1,51 @@
+"""brando console — a browsable catalog of every brand in the fleet.
+
+The Phase 4 seed, built against what exists today. The console the plan describes
+reads `.brando` archives over a gRPC BrandService; neither exists yet, so this
+reads the artifact that does — the `<brand>.json` each brand_skin already emits.
+When the services land, the data source swaps and the page does not.
+
+Run it over the built skins of every brand:
+
+    bazel run //console:build -- \
+      --skin aion=/path/to/aion.json --mark aion=/path/to/aion_mark.glyph.svg \
+      --skin fastverk=... \
+      --out /tmp/console/index.html
+    python3 -m http.server -d /tmp/console 8731
+
+brando cannot depend on the brand repos, so the skins are inputs rather than deps
+— which is the same shape a BrandService call will have.
+"""
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "build_console_lib",
+    srcs = ["build_console.py"],
+    imports = [".."],
+    deps = [
+        "//marklib:palette",
+        "//marklib:tokens",
+    ],
+)
+
+py_binary(
+    name = "build",
+    srcs = ["build_console.py"],
+    imports = [".."],
+    main = "build_console.py",
+    deps = [
+        "//marklib:palette",
+        "//marklib:tokens",
+    ],
+)
+
+py_test(
+    name = "build_console_test",
+    size = "small",
+    srcs = ["build_console_test.py"],
+    imports = [".."],
+    deps = [":build_console_lib"],
+)

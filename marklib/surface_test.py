@@ -14,6 +14,7 @@ breaks, both quiet:
 A surface test turns both into an immediate, named failure.
 """
 
+import sys
 import unittest
 
 import marklib
@@ -49,10 +50,39 @@ class Surface(unittest.TestCase):
         for name in marklib.__all__:
             self.assertTrue(hasattr(marklib, name), f"__all__ names missing {name}")
 
-    def test_submodules_are_importable_without_the_geometry_stack(self):
-        """tokens and palette are stdlib-only on purpose — keep them that way."""
-        import marklib.palette  # noqa: F401
-        import marklib.tokens  # noqa: F401
+    def test_stdlib_only_submodules_do_not_drag_in_the_geometry_stack(self):
+        """tokens and palette are stdlib-only on purpose — and it must be TRUE.
+
+        It was false for a while: `__init__` imported the geometry module eagerly,
+        so `import marklib.tokens` pulled svgwrite through the package and failed
+        anywhere shapely/svgwrite/Pillow were not installed. Nothing caught it,
+        because tests run under Bazel where every wheel is present — the console
+        found it instead. Asserting importability is not enough; this asserts the
+        heavy modules were never LOADED.
+
+        Checked in a SUBPROCESS on purpose: the other cases in this file touch
+        the lazy geometry names, which loads svgwrite into this interpreter, so an
+        in-process assertion would depend on test ordering and pass by accident.
+        """
+        import os
+        import subprocess
+
+        probe = (
+            "import sys, marklib.tokens, marklib.palette, marklib.fit;"
+            "print(','.join(m for m in ('svgwrite','shapely','PIL','numpy')"
+            "                if m in sys.modules))"
+        )
+        out = subprocess.run(
+            [sys.executable, "-c", probe],
+            capture_output=True, text=True, check=True,
+            env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+        ).stdout.strip()
+        self.assertEqual("", out, f"stdlib-only imports pulled in: {out}")
+
+    def test_geometry_names_still_resolve_through_the_lazy_surface(self):
+        """Laziness must not cost the published API."""
+        self.assertTrue(callable(marklib.geom_to_path))
+        self.assertIsNotNone(marklib.Canvas)
 
 
 if __name__ == "__main__":
