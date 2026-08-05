@@ -10,6 +10,20 @@ common --registry=https://bcr.bazel.build/
 
 common --action_env=HOME
 
+# Bazel otherwise INVENTS an empty `__init__.py` in runfiles for any package that
+# does not declare one, and that empty file can win over the real, declared
+# `marklib/__init__.py`. The symptom is a flaky
+#
+#     ImportError: cannot import name 'Canvas' from 'marklib'
+#
+# on Linux -- flaky because it depends on ordering, which is why it reproduced on
+# a README-only commit and not on the code commit before it, and why darwin never
+# showed it. An empty `__init__.py` is a perfectly valid package, so nothing
+# reports that the wrong one was used.
+#
+# With this on, a package's `__init__.py` comes from its srcs or not at all.
+common --incompatible_default_to_explicit_init_py
+
 test --test_output=errors
 test --test_summary=terse
 
