@@ -1,4 +1,5 @@
 load("//:version.bzl", "VERSION")
+load("//pkg:defs.bzl", "brand_publish_plan")
 load("@brando//:defs.bzl", "brand_icons", "brand_package", "brand_svgs", "brand_wordmark_glyphs")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@brando_pip//:requirements.bzl", "requirement")
@@ -295,4 +296,13 @@ brand_package(
     brando_version = VERSION,
     source_repo = "mattmarshall/brando",
     spec = "brando.textproto",
+)
+
+# brando's own package on the CDN, and the pin a consumer must use.
+brand_publish_plan(
+    name = "brando_publish",
+    package = ":brando_package",
+    base_url = "https://static.aion.savvifi.dev",
+    brand = "brando",
+    version = VERSION,
 )

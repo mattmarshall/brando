@@ -172,3 +172,45 @@ def brand_package(
         tools = [_PACK],
         visibility = visibility,
     )
+
+_PUBLISH_PLAN = Label("//tools:publish_plan")
+
+def brand_publish_plan(
+        name,
+        package,
+        base_url,
+        prefix = "brando",
+        brand = "",
+        version = "",
+        visibility = None):
+    """Where a `.brando` will live, and the `integrity` a consumer must pin.
+
+    Hermetic: every field is a pure function of the package bytes, so this is a
+    build artifact a test can check rather than something the publisher derives
+    by hand. `rules_brand.from_url` REQUIRES `integrity`, and computing an SRI
+    hash manually is the step people skip — which matters more than it looks,
+    since an unpinned brand means a CDN object swap restyles every consumer at
+    once, silently.
+
+    Emits `<name>.json` (brand, key, url, integrity, sha256, size) and
+    `<name>_snippet.txt`, a paste-ready MODULE.bazel block.
+    """
+    native.genrule(
+        name = name,
+        srcs = [package],
+        outs = [
+            "%s.json" % name,
+            "%s_snippet.txt" % name,
+        ],
+        cmd = (
+            "$(execpath %s) " % _PUBLISH_PLAN +
+            "--package $(execpath %s) " % package +
+            "--base_url '%s' --prefix '%s' " % (base_url, prefix) +
+            ("--brand '%s' " % brand if brand else "") +
+            ("--version '%s' " % version if version else "") +
+            "--out_json $(location %s.json) " % name +
+            "--out_snippet $(location %s_snippet.txt)" % name
+        ),
+        tools = [_PUBLISH_PLAN],
+        visibility = visibility or ["//visibility:public"],
+    )

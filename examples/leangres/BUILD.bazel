@@ -22,5 +22,7 @@ brand_suite(
     spec = "leangres.textproto",
     skin = "leangres.textpb",
     brando_version = VERSION,
+    publish_base_url = "https://static.aion.savvifi.dev",
     source_repo = "tomato-bazel/leangres",
 )
+

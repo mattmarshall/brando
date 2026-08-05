@@ -20,7 +20,7 @@ drops the macro for that one artifact and keeps it for the rest.
 
 load("//doc:defs.bzl", "brand_latex_class")
 load("//mdbook:defs.bzl", "brand_mdbook_theme")
-load("//pkg:defs.bzl", "brand_package")
+load("//pkg:defs.bzl", "brand_package", "brand_publish_plan")
 load("//skins:defs.bzl", "brand_skin")
 load("//wordmark:defs.bzl", "brand_icons", "brand_svgs")
 
@@ -99,6 +99,7 @@ def brand_suite(
         package = True,
         brando_version = "",
         source_repo = "",
+        publish_base_url = "",
         extra_assets = None,
         visibility = None):
     """Instantiate a brand's full catalog.
@@ -133,6 +134,11 @@ def brand_suite(
         class asking for a Bold that is not in the package falls back silently,
         which is the failure `aion/brand/fonts/README.md` documents.
       latex_classname: the `\\documentclass` name. Defaults to the brand id.
+      publish_base_url: when set, also emit the publish plan — the
+        content-addressed URL and the SRI `integrity` a consumer must pin. Worth
+        having by default: `rules_brand.from_url` requires the integrity, and
+        computing it by hand is the step people skip. An unpinned brand means a
+        CDN object swap restyles every consumer at once, silently.
       contrast_waivers: pairs to waive, e.g. `["light:muted/bg"]`. Put the reason
         beside it; a waiver is a design decision, not a threshold.
       latex/mdbook/package: opt OUT of parts of the catalog.
@@ -261,3 +267,16 @@ def brand_suite(
             source_repo = source_repo,
             visibility = visibility,
         )
+
+        if publish_base_url:
+            brand_publish_plan(
+                name = "%s_publish" % name,
+                package = ":%s_package" % name,
+                base_url = publish_base_url,
+                # Explicit, because the filename stem is `<name>_package` and a
+                # consumer's repo should be named for the BRAND, not the target
+                # that built it.
+                brand = name,
+                version = brando_version,
+                visibility = visibility,
+            )

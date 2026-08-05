@@ -56,3 +56,23 @@ py_test(
     imports = [".."],
     deps = [":pack_brand_lib"],
 )
+
+py_binary(
+    name = "publish_plan",
+    srcs = ["publish_plan.py"],
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "publish_plan_lib",
+    srcs = ["publish_plan.py"],
+    imports = [".."],
+)
+
+py_test(
+    name = "publish_plan_test",
+    size = "small",
+    srcs = ["publish_plan_test.py"],
+    imports = [".."],
+    deps = [":publish_plan_lib"],
+)
