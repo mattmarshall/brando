@@ -1,0 +1,26 @@
+"""leangres — a complete brand, in one macro call.
+
+THIS FILE IS THE POINT OF THE WHOLE EXERCISE.
+
+Before `brand_suite`, standing up a brand meant copying another brand's BUILD
+file: `//selfbrand` is 298 lines, `fastverk/brand` more, and both carry a
+hand-maintained `outs` list that has to mirror a Python dict. That is why
+`fastverk` produces seventeen artifact types and `graph` and `savault` produce
+two — every brand stopped wherever its author's patience did.
+
+leangres has no mark yet, and that is deliberate: a brand should not be blocked
+from having a theme, a stylesheet, an mdBook theme, a LaTeX class and a
+distributable package just because nobody has drawn a logo. `mark` is optional;
+add a `py_binary` against `marklib` later and the icons appear.
+"""
+
+load("//pkg:suite.bzl", "brand_suite")
+load("//:version.bzl", "VERSION")
+
+brand_suite(
+    name = "leangres",
+    spec = "leangres.textproto",
+    skin = "leangres.textpb",
+    brando_version = VERSION,
+    source_repo = "tomato-bazel/leangres",
+)

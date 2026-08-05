@@ -1,0 +1,72 @@
+# leangres — the Lean 4 -> PostgreSQL stack.
+#
+# A FIRST DRAFT, not a decided identity. It exists to prove the machinery: this
+# file plus a spec plus one `brand_suite` call is a complete brand, and nothing
+# here was copied from another brand's BUILD file.
+#
+# The reasoning, such as it is. leangres proves SQL correct before it runs, so
+# the palette is deliberately unexcitable: a deep slate ground and a single cool
+# green that reads as "verified" rather than "success toast". Green is doing real
+# work here — it is the only saturated colour, so it marks exactly one thing.
+id: "leangres"
+display_name: "leangres"
+
+dark {
+  bg: "#12161A"
+  surface: "#1A2026"
+  fg: "#E6EBEF"
+  muted: "#93A1AC"
+  accent: "#4FC08D"
+  accent_strong: "#7FD9AF"
+  on_accent: "#0B1F17"
+  border: "#2A333B"
+  danger: "#E5776A"
+  success: "#4FC08D"
+  warning: "#E0B15E"
+  info: "#6FA8DC"
+  code_fg: "#9FD8C0"
+}
+
+light {
+  bg: "#FBFCFC"
+  surface: "#F1F4F5"
+  fg: "#12161A"
+  muted: "#4F5D68"
+  accent: "#1B7A55"
+  accent_strong: "#0F5C3F"
+  on_accent: "#FFFFFF"
+  border: "#D6DDE1"
+  danger: "#A3372B"
+  success: "#1B7A55"
+  warning: "#8A6320"
+  info: "#215D8F"
+  code_fg: "#155F43"
+}
+
+typography {
+  sans: "Space Grotesk"
+  display: "Space Grotesk"
+  mono: "JetBrains Mono"
+  heading_weight: 600
+  body_weight: 400
+  heading_tracking: "-0.015em"
+  base_size_px: 16
+  # Declared with provenance, because a face named and not shipped falls back
+  # silently to whatever the reader has — the failure aion/brand/fonts/README.md
+  # documents, and which four of the six fleet brands still have.
+  fonts {
+    family: "Space Grotesk"
+    weight: "500"
+    src_uri: "https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPb54C-s.woff2"
+  }
+  fonts {
+    family: "Space Grotesk"
+    weight: "600"
+    src_uri: "https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPbx4C-s.woff2"
+  }
+}
+
+metrics {
+  radius_px: 6
+  unit_px: 8
+}

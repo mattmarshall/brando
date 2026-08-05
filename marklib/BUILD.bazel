@@ -206,3 +206,13 @@ py_test(
     imports = [".."],
     deps = [":raster"],
 )
+
+# The contrast gate as a runnable binary, so `brand_contrast_test` can invoke it.
+# `:palette` stays a py_library — it is imported by the console and the tests.
+py_binary(
+    name = "contrast",
+    srcs = ["palette.py"],
+    imports = [".."],
+    main = "palette.py",
+    visibility = ["//visibility:public"],
+)

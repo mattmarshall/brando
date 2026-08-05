@@ -1,0 +1,45 @@
+# leangres — the BrandSpec. What a human (or `StudioService.ProposeSpec`) authors.
+#
+# The Theme is deliberately NOT inlined here: `brand_skin` encodes a Theme and a
+# BrandSpec merely contains one, and extracting a nested message from a textproto
+# without a protobuf runtime in the consumer is real work that brando has not
+# done. Authoring both files is honest; conflating them would encode the wrong
+# message and say nothing about it.
+id: "leangres"
+display_name: "leangres"
+
+identity {
+  legal_name: "leangres"
+  positioning:
+    "Lean 4 proofs that compile to PostgreSQL. Schema and migration correctness "
+    "established before anything touches a database, not asserted by a test "
+    "suite afterwards."
+  story:
+    "Most tools that promise safe migrations check them against a copy of "
+    "production and hope the copy is representative. leangres does not sample; "
+    "it proves. The name is the whole claim in one word -- Lean, and Postgres."
+  # `voice` is repeated: one rule per entry, so a critique pass can cite the
+  # rule it thinks a draft broke rather than the whole paragraph.
+  voice: "Precise and unhurried."
+  voice:
+    "Distinguish PROVED from TESTED every time, and never let the second borrow "
+    "the first's certainty."
+  voice: "No exclamation marks. The claim is strong enough written flat."
+  usage_rules:
+    "The green is the only saturated colour in the system. It marks verification "
+    "and nothing else -- not calls to action, not decoration."
+  usage_rules:
+    "Set the name lowercase. It is a portmanteau, not two proper nouns."
+}
+
+# Which artifacts a complete leangres is. Naming this is the point of `Catalog`:
+# it turns "what does a brand include" from "whatever someone wired up" into a
+# declaration that can be checked. No mark yet -- deliberately; a brand should not
+# be blocked from having a stylesheet because nobody has drawn a logo.
+catalog {
+  kinds: ARTIFACT_KIND_THEME_BINPB
+  kinds: ARTIFACT_KIND_THEME_JSON
+  kinds: ARTIFACT_KIND_THEME_CSS
+  kinds: ARTIFACT_KIND_MDBOOK_THEME
+  kinds: ARTIFACT_KIND_LATEX_CLASS
+}
