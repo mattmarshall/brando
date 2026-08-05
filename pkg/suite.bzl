@@ -103,6 +103,7 @@ def brand_suite(
         brando_version = "",
         source_repo = "",
         publish_base_url = "",
+        publish_prefix = "",
         extra_assets = None,
         visibility = None):
     """Instantiate a brand's full catalog.
@@ -152,6 +153,8 @@ def brand_suite(
         class asking for a Bold that is not in the package falls back silently,
         which is the failure `aion/brand/fonts/README.md` documents.
       latex_classname: the `\\documentclass` name. Defaults to the brand id.
+      publish_prefix: the key prefix. Empty (the default) gives a FLAT key, which
+        is what a GitHub Release needs — release assets are filenames, not paths.
       publish_base_url: when set, also emit the publish plan — the
         content-addressed URL and the SRI `integrity` a consumer must pin. Worth
         having by default: `rules_brand.from_url` requires the integrity, and
@@ -326,6 +329,7 @@ def brand_suite(
                 name = "%s_publish" % name,
                 package = ":%s_package" % name,
                 base_url = publish_base_url,
+                prefix = publish_prefix,
                 # Explicit, because the filename stem is `<name>_package` and a
                 # consumer's repo should be named for the BRAND, not the target
                 # that built it.

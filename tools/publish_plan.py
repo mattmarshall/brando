@@ -13,10 +13,18 @@ a small thing — a brand is what a company looks like, and an unpinned fetch me
 a CDN object swap restyles every consumer at once, silently. So the pin is
 generated with the artifact rather than derived by whoever happens to publish it.
 
-WHY THE KEY EMBEDS THE HASH. Same convention as `aion/platform/tools/publish-brand.sh`,
-which this is designed to sit beside: a key never changes meaning, so edges cache
-it forever and no CloudFront invalidation is needed on publish. The mutable part
-is a small index at a short TTL.
+WHY THE KEY EMBEDS THE HASH. A key never changes meaning, so a cache may hold it
+forever and republishing is a no-op rather than an invalidation. That holds for
+any host; the default one is a GitHub Release, where assets are flat filenames
+and `--prefix ''` therefore gives the right shape.
+
+WHERE THIS PUBLISHES, AND WHY NOT A CDN BUCKET. An earlier version of this pushed
+to aion's S3 + CloudFront lane, on the reasoning that reusing infrastructure beats
+building it. That reasoning weighed whether the infrastructure existed and never
+weighed WHOSE it was: brando and most of the brands it packages are personal
+projects, and a company's CDN is not the place for them. GitHub Releases needs no
+infrastructure at all, sits on the repo that owns the brand, and is already how
+the Bazel registry serves module tarballs.
 
 CLI: publish_plan.py --package P --base_url U [--prefix brando] [--version V]
                      --out_json J [--out_snippet S]
@@ -46,7 +54,11 @@ def plan(package_path: str, base_url: str, prefix: str, brand: str, version: str
     # the plan but NOT in the key: two builds of the same version can differ (a
     # regenerated asset, a new brando), and a version-keyed URL would then have
     # two meanings — the exact ambiguity content addressing exists to remove.
-    key = "%s/%s.%s.brando" % (prefix, brand, hexdigest[:16])
+    #
+    # An empty prefix gives a FLAT key, which is what a GitHub Release needs:
+    # release assets have no directories, only filenames.
+    name = "%s.%s.brando" % (brand, hexdigest[:16])
+    key = "%s/%s" % (prefix, name) if prefix else name
 
     return {
         "brand": brand,

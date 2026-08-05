@@ -302,7 +302,8 @@ brand_package(
 brand_publish_plan(
     name = "brando_publish",
     package = ":brando_package",
-    base_url = "https://static.aion.savvifi.dev",
+    base_url = "https://github.com/mattmarshall/brando/releases/download/v0.4.0",
+    prefix = "",
     brand = "brando",
     version = VERSION,
 )
