@@ -110,6 +110,13 @@ py_test(
 # Typography.display and repeated Typography.fonts, so a slip back to the retired
 # meridian 0.2.3 schema fails HERE, in brando's own CI, rather than in six brand
 # repos one at a time. See skins/testdata/fixture.textpb.
+# brando's OWN skin. It shipped a mark, a wordmark and an entire brand pipeline
+# for three releases without one — a poor advertisement for the thing it sells.
+brand_skin(
+    name = "brando",
+    textpb = "brando.textpb",
+)
+
 brand_skin(
     name = "fixture",
     textpb = "testdata/fixture.textpb",

@@ -48,21 +48,22 @@ class FixtureJson(unittest.TestCase):
         self.assertEqual(6, self.theme["metrics"]["radius_px"])
         self.assertIsInstance(self.theme["typography"]["base_size_px"], int)
 
-    def test_status_roles_are_absent_under_the_current_pin(self):
-        """Guard the reason warning/info are missing fleet-wide.
+    def test_status_roles_encode(self):
+        """warning/info, which were unreachable until 2026-08-05.
 
-        This asserts a LIMITATION, not a desire. Palette.warning (13) and info
-        (14) land in meridian_schemas 0.20.0, which is tagged upstream but never
-        published -- both registries stop at 0.19.0 -- so no skin in the fleet can
-        set them and meridian's ValueTone collapses NEEDS-ATTENTION and
-        INFORMATIONAL to neutral. When 0.20.0+ is published and brando's pin
-        moves, this test fails, and that failure is the prompt to add the roles to
-        the fixture and to every real skin.
+        This case used to assert the OPPOSITE — that the roles were absent — and
+        said so explicitly: "when 0.20.0+ is published and brando's pin moves,
+        this test fails, and that failure is the prompt to add the roles". That is
+        what happened. Palette.warning (13) and info (14) landed in
+        meridian_schemas 0.20.0 and sat unreachable because `rels release` wrote
+        five tagged versions to modules/meridian-schemas/, a path Bazel never
+        reads. With them reachable, meridian's ValueTone can finally resolve
+        NEEDS-ATTENTION and INFORMATIONAL instead of collapsing both to neutral.
         """
         for mode in ("light", "dark"):
             with self.subTest(mode=mode):
-                self.assertNotIn("warning", self.theme[mode])
-                self.assertNotIn("info", self.theme[mode])
+                self.assertIn("warning", self.theme[mode])
+                self.assertIn("info", self.theme[mode])
 
     def test_singular_message_is_an_object(self):
         self.assertIsInstance(self.theme["metrics"], dict)

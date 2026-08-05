@@ -33,3 +33,12 @@ py_test(
     imports = [".."],
     deps = [":render_template_lib"],
 )
+
+# Stages a brand's artifacts content-addressed and writes the manifest textproto.
+# STDLIB ONLY, for the same reason skin_json is: it runs in the BRAND's build, and
+# a brand repo need not have a pip hub.
+py_binary(
+    name = "pack_brand",
+    srcs = ["pack_brand.py"],
+    imports = [".."],
+)

@@ -46,10 +46,18 @@ bazel_dep(name = "rules_tectonic", version = "0.2.0")
 # Label() in skins/defs.bzl so resolution is brando's own. Changing only the label
 # form would have pinned resolution to the WRONG (0.2.3) schema, deterministically.
 #
-# Pinned to 0.17.0 to match the live consumer (savvifi/aion //brand). Both
-# registries carry through 0.19.0; MVS lets a consumer move up on its own, whereas
-# pinning newest here would drag every consumer with it.
-bazel_dep(name = "meridian_schemas", version = "0.17.0")
+# Pinned to 0.24.0, the first version brando can actually reach that carries
+# Palette.warning (13) and Palette.info (14). Those fields landed in 0.20.0 and
+# then sat unpublished — `rels release` derived the registry directory from the
+# REPO basename (meridian-schemas) rather than the module's declared name
+# (meridian_schemas), so five tagged releases wrote to a tree Bazel never looks
+# in. Fixed and published 2026-08-05.
+#
+# Until then, zero of the six brand skins set warning or info, which read as
+# neglect but was impossibility: meridian's ValueTone had nowhere to resolve
+# NEEDS-ATTENTION or INFORMATIONAL and collapsed both to neutral on every surface.
+# The bump is additive-only, so it costs consumers nothing but the MVS floor.
+bazel_dep(name = "meridian_schemas", version = "0.24.0")
 bazel_dep(name = "protobuf", version = "33.4")
 
 # rules_aip — AIP proto linting for brando.v1 (the .brando package format). It is

@@ -1,0 +1,63 @@
+# brando's own skin — the Godfather palette as a meridian.theme.v1.Theme.
+#
+# brando shipped a mark, a wordmark and a whole brand pipeline for three releases
+# without a skin of its own, which is a poor advertisement for the thing it sells:
+# every other brand in the fleet can drive a console, a docs theme and a renderer
+# from one source, and the tool that gave them that could not.
+#
+# Cream on ink, after the film. `accent` is the deeper cream rather than a colour:
+# brando's identity is monochrome on purpose — the marionette's strings read as
+# structure, not decoration — so the accent is a value step, not a hue.
+#
+# warning/info are set here because they finally CAN be. They arrive in
+# meridian_schemas 0.20.0, which sat tagged-but-unpublished until 2026-08-05
+# (`rels release` wrote to modules/meridian-schemas/, a path Bazel never reads).
+# Until then meridian's ValueTone collapsed NEEDS-ATTENTION and INFORMATIONAL to
+# neutral on every surface in the fleet.
+
+id: "brando"
+display_name: "brando"
+dark {
+  bg: "#0E0E0E"
+  surface: "#17171A"
+  fg: "#ECE7DA"
+  muted: "#9A9488"
+  border: "#2A2A2C"
+  accent: "#D8D1BF"
+  accent_strong: "#ECE7DA"
+  on_accent: "#0E0E0E"
+  danger: "#D6452F"
+  success: "#5BB873"
+  code_bg: "#17171A"
+  code_fg: "#D8D1BF"
+  warning: "#E0A33E"
+  info: "#8FB3D9"
+}
+light {
+  bg: "#ECE7DA"
+  surface: "#F5F1E8"
+  fg: "#0E0E0E"
+  muted: "#5F5A52"
+  border: "#D8D0C0"
+  accent: "#4A443A"
+  accent_strong: "#0E0E0E"
+  on_accent: "#ECE7DA"
+  danger: "#B3241B"
+  success: "#2E7D3A"
+  code_bg: "#E4DDCD"
+  code_fg: "#0E0E0E"
+  warning: "#8A5A12"
+  info: "#2A5580"
+}
+typography {
+  sans: "\"Space Grotesk\", ui-sans-serif, system-ui, sans-serif"
+  mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  base_size_px: 16
+  heading_weight: 600
+  body_weight: 400
+  heading_tracking: "-0.015"
+}
+metrics {
+  radius_px: 8
+  unit_px: 4
+}

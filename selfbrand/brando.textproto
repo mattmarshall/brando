@@ -1,0 +1,112 @@
+# brando's own BrandSpec — the input side of brando.v1, dogfooded.
+#
+# Deliberately the FULL shape rather than a minimal one: Identity and Catalog are
+# the two things this format adds over a bag of files, and a fixture that omits
+# them proves nothing about them.
+id: "brando"
+display_name: "brando"
+
+identity {
+  tagline: "The reusable brand pipeline — one source pulls all the strings."
+  positioning:
+    "Brand tooling as a Bazel module: a brand supplies its geometry, palette and "
+    "copy; brando supplies the pipeline that turns them into every artifact."
+  story:
+    "A play on Marlon Brando -> The Godfather -> brand tooling that pulls all the "
+    "strings. The mark is a marionette control bar with artifacts hanging from it."
+  voice: "precise"
+  voice: "unfussy"
+  voice: "explains the why, not the what"
+  usage_rules:
+    "The marionette's strings are load-bearing: never crop the mark so the bar "
+    "and the artifacts are separated."
+  usage_rules: "Cream on ink is primary; the transparent variant is for placing on any surface."
+}
+
+theme {
+  id: "brando"
+  display_name: "brando"
+  dark {
+    bg: "#0E0E0E"
+    surface: "#17171A"
+    fg: "#ECE7DA"
+    muted: "#9A9488"
+    border: "#2A2A2C"
+    accent: "#D8D1BF"
+    accent_strong: "#ECE7DA"
+    on_accent: "#0E0E0E"
+    danger: "#D6452F"
+    success: "#5BB873"
+    code_bg: "#17171A"
+    code_fg: "#D8D1BF"
+  }
+  light {
+    bg: "#ECE7DA"
+    surface: "#F5F1E8"
+    fg: "#0E0E0E"
+    muted: "#5F5A52"
+    border: "#D8D0C0"
+    accent: "#4A443A"
+    accent_strong: "#0E0E0E"
+    on_accent: "#ECE7DA"
+    danger: "#B3241B"
+    success: "#2E7D3A"
+    code_bg: "#E4DDCD"
+    code_fg: "#0E0E0E"
+  }
+  typography {
+    sans: "\"Space Grotesk\", ui-sans-serif, system-ui, sans-serif"
+    mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    base_size_px: 16
+    heading_weight: 600
+    body_weight: 400
+    heading_tracking: "-0.015"
+  }
+  metrics {
+    radius_px: 8
+    unit_px: 4
+  }
+}
+
+mark {
+  generator: "//selfbrand:gen_godfather_v2"
+  variants: "inkbg"
+  variants: "inkbg_grad"
+  variants: "transparent"
+  layers: "svg"
+  layers: "strings.svg"
+  layers: "bar.svg"
+  layers: "hand.svg"
+  layers: "artifacts.svg"
+  sizes: 512
+  sizes: 1024
+  supersample: 4
+}
+
+fonts {
+  family: "Space Grotesk"
+  src_uri: "https://github.com/floriankarsten/space-grotesk"
+  weight: "500"
+  license: "SIL Open Font License 1.1"
+  sha256: "f0bfb6e305c3467a833f3368df308f34b1e0ba555ce93ca32a83052d7fffbbaf"
+  upstream_uri: "https://github.com/floriankarsten/space-grotesk"
+}
+
+catalog {
+  kinds: ARTIFACT_KIND_MARK_SVG
+  kinds: ARTIFACT_KIND_MARK_PNG
+  kinds: ARTIFACT_KIND_THEME_BINPB
+  kinds: ARTIFACT_KIND_THEME_JSON
+  kinds: ARTIFACT_KIND_WORDMARK
+  kinds: ARTIFACT_KIND_LOCKUP
+  kinds: ARTIFACT_KIND_FONTS
+}
+
+copy {
+  deck_title: "brando"
+  deck_subtitle: "one source pulls all the strings"
+  mark_section_title: "The mark"
+  color_section_title: "Colour"
+  type_section_title: "Type"
+  closing: "brando — the reusable brand pipeline"
+}

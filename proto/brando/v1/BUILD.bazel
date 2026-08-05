@@ -51,3 +51,14 @@ test_suite(
     name = "aip_lint",
     tests = [":brand_proto_aip_lint"],
 )
+
+# A SELF-CONTAINED FileDescriptorSet (--include_imports pulls in the WKTs and
+# meridian's theme.proto). brand_package feeds this to `protoc --encode` with
+# --descriptor_set_in, so encoding a manifest needs no proto_path plumbing and no
+# access to the .proto sources in the consuming build.
+genrule(
+    name = "brand_descriptor_set",
+    srcs = [":brand_proto"],
+    outs = ["brand.descset"],
+    cmd = "cp $< $@",
+)

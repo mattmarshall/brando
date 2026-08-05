@@ -18,15 +18,15 @@
 # one at a time. The colors are intentionally drab greys: this is a wire-format
 # test, not an identity, and it must never read as a brand anyone could adopt.
 #
-# NOT SET HERE, AND THE REASON IS THE POINT: Palette.warning (13) and info (14).
-# It looks like neglect that zero of the six real skins set them -- meridian's
-# ValueTone therefore collapses NEEDS-ATTENTION and INFORMATIONAL to neutral
-# everywhere -- but they CANNOT be set. Those fields arrive in meridian_schemas
-# 0.20.0 (commit 307b9a5, "ValueTone + EnumOption"), and 0.20.0 is TAGGED in
-# meridian-ux/meridian-schemas but was never published: both registries stop at
-# 0.19.0, so no consumer can bazel_dep a schema that has them. Adding them here
-# fails the encode gate against the 0.17.0 pin -- verified, not assumed.
-# Unblocking that is a meridian-schemas release, not a brando change.
+#   * Palette.warning (13) / info (14) -- NOW REACHABLE. These sat unusable for
+#     months: they landed in meridian_schemas 0.20.0, but `rels release` derived
+#     the registry directory from the repo basename (meridian-schemas) rather than
+#     the module's declared name (meridian_schemas), so five tagged releases wrote
+#     to a tree Bazel never looks in. Zero of the six real skins set them, which
+#     read as neglect and was impossibility -- meridian's ValueTone had nowhere to
+#     resolve NEEDS-ATTENTION or INFORMATIONAL and collapsed both to neutral.
+#     Published 2026-08-05; brando now pins 0.24.0 and this fixture is the gate
+#     that they encode.
 
 id: "brando_fixture"
 display_name: "brando fixture (not a brand)"
@@ -44,6 +44,8 @@ light {
   success: "#15803D"
   code_bg: "#F4F4F5"
   code_fg: "#3F3F46"
+  warning: "#A16207"
+  info: "#1D4ED8"
 }
 
 dark {
@@ -59,6 +61,8 @@ dark {
   success: "#4ADE80"
   code_bg: "#27272A"
   code_fg: "#D4D4D8"
+  warning: "#FBBF24"
+  info: "#60A5FA"
 }
 
 typography {

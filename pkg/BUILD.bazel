@@ -1,0 +1,5 @@
+"""brando brand_package — the `.brando` archive rule. See defs.bzl."""
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["defs.bzl"])

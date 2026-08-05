@@ -30,6 +30,7 @@ load("//skins:defs.bzl", _brand_skin = "brand_skin")
 load("//mdbook:defs.bzl", _brand_mdbook_theme = "brand_mdbook_theme")
 
 # Mark/icon/wordmark/office packaging macros.
+load("//pkg:defs.bzl", _brand_package = "brand_package")
 load(
     "//wordmark:defs.bzl",
     _brand_icons = "brand_icons",
@@ -54,3 +55,4 @@ brand_wordmark = _brand_wordmark
 brand_wordmark_glyphs = _brand_wordmark_glyphs
 brand_office_pptx = _brand_office_pptx
 brand_office_docx = _brand_office_docx
+brand_package = _brand_package
