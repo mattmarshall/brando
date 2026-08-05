@@ -122,3 +122,35 @@ class LoudFailures(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Concatenation(unittest.TestCase):
+    """Adjacent string literals concatenate, as in C.
+
+    Every textproto wraps prose this way. Nothing in the fleet noticed, because
+    no *skin* has a field long enough to wrap — a BrandSpec's `story` and
+    `description` are paragraphs, and packing brando's own brand is what found
+    it. The failure is badly localized: the second literal reads as a scalar
+    with no field name, so the error names a position several lines past the
+    real one.
+    """
+
+    SCHEMA = {
+        "root": "M",
+        "messages": {"M": {"s": {"kind": "string", "repeated": False},
+                           "r": {"kind": "string", "repeated": True}}},
+    }
+
+    def test_adjacent_literals_join(self):
+        out = skin_json.parse('s:\n  "one "\n  "two "\n  "three"\n', self.SCHEMA)
+        self.assertEqual({"s": "one two three"}, out)
+
+    def test_a_comment_between_them_does_not_break_the_join(self):
+        out = skin_json.parse('s: "a"  # why\n   "b"\n', self.SCHEMA)
+        self.assertEqual({"s": "ab"}, out)
+
+    def test_separate_repeated_entries_stay_separate(self):
+        """The dangerous failure mode of the fix: joining across FIELDS. Two
+        `r:` entries are two values, however they are laid out."""
+        out = skin_json.parse('r: "a"\nr: "b"\n', self.SCHEMA)
+        self.assertEqual({"r": ["a", "b"]}, out)

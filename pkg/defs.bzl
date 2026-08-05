@@ -23,6 +23,8 @@ a malformed manifest a build failure rather than a runtime surprise.
 _PACK = Label("//tools:pack_brand")
 _PROTOC = Label("@protobuf//:protoc")
 _DESCRIPTOR_SET = Label("//proto/brando/v1:brand_descriptor_set")
+_BRAND_SCHEMA = Label("//proto/brando/v1:brand_schema.json")
+_SKIN_JSON = Label("//skins:skin_json")
 _MESSAGE = "brando.v1.BrandPackage"
 _PROTO_FILE = "brando/v1/brand.proto"
 
@@ -126,16 +128,44 @@ def brand_package(
         visibility = visibility,
     )
 
-    # 3. Write the archive: the encoded manifest plus every blob, content-addressed.
+    # 3. The same manifest as proto3-JSON, for Starlark.
+    #
+    #    rules_brand generates a target per logical asset, which means a REPO RULE
+    #    has to read the manifest — and a repo rule has no protobuf runtime and no
+    #    way to get one, since it runs before any toolchain is resolved. It does
+    #    have `json.decode`. So the package carries the manifest in both encodings,
+    #    both derived from the one textproto above.
+    native.genrule(
+        name = "%s_manifest_json" % name,
+        srcs = [
+            "%s_manifest.textpb" % name,
+            _BRAND_SCHEMA,
+        ],
+        outs = ["%s_brand.json" % name],
+        cmd = (
+            "$(execpath %s) " % _SKIN_JSON +
+            "--schema $(execpath %s) " % _BRAND_SCHEMA +
+            "--textpb $(execpath %s_manifest.textpb) " % name +
+            "--out $@"
+        ),
+        tools = [_SKIN_JSON],
+        visibility = visibility,
+    )
+
+    # 4. Write the archive: both manifests plus every blob, content-addressed.
     #    Deterministic (fixed mtimes, sorted entries) so two builds of the same
     #    brand produce identical bytes.
     native.genrule(
         name = name,
-        srcs = ["%s_brand.binpb" % name] + labels,
+        srcs = [
+            "%s_brand.binpb" % name,
+            "%s_brand.json" % name,
+        ] + labels,
         outs = ["%s.brando" % name],
         cmd = (
             "$(execpath %s) zip " % _PACK +
             "--manifest $(execpath %s_brand.binpb) " % name +
+            "--json $(execpath %s_brand.json) " % name +
             "--out $@ " +
             args
         ),

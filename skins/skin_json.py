@@ -100,9 +100,15 @@ def parse(text: str, schema: dict) -> dict:
             continue
         if kind == "key":
             name = m.group("key")
-            # `true` / `false` are lexed as keys; a pending key means this is a value.
-            if pending is not None and name in _BOOL:
+            # A bare identifier is a VALUE when a field name is already pending:
+            # `true`/`false` for a bool, and an enum constant for an enum. Both
+            # lex identically to a field name, so only the schema can tell them
+            # apart — which is the whole reason this reads one.
+            if pending is not None and name in _BOOL and field(pending)["kind"] == "bool":
                 put(pending, _BOOL[name])
+                pending = None
+            elif pending is not None and field(pending)["kind"] == "enum":
+                put(pending, name)
                 pending = None
             else:
                 pending = name
@@ -127,9 +133,33 @@ def parse(text: str, schema: dict) -> dict:
             raise ValueError("scalar without a preceding field name")
         spec = field(pending)
         if kind == "string":
-            if spec["kind"] == "number":
+            if spec["kind"] in ("number", "int64"):
                 raise ValueError(f"field {pending!r} is numeric but got a quoted string")
-            value: Any = _unescape(m.group("string"))
+            # Adjacent string literals CONCATENATE, as in C. This is how any
+            # textproto wraps prose to a sane column width, and the parser this
+            # replaced did not implement it either — nothing noticed, because no
+            # skin had a field long enough to wrap. A BrandSpec does: `story` and
+            # `description` are paragraphs. Without this, the second literal is a
+            # scalar with no field name and the parse dies several lines later,
+            # pointing at the wrong place.
+            parts = [_unescape(m.group("string"))]
+            while True:
+                nxt = _TOKEN.match(text, pos)
+                if not nxt:
+                    break
+                if nxt.lastgroup in ("comment", "ws"):
+                    pos = nxt.end()
+                    continue
+                if nxt.lastgroup != "string":
+                    break
+                parts.append(_unescape(nxt.group("string")))
+                pos = nxt.end()
+            value: Any = "".join(parts)
+        elif spec["kind"] == "int64":
+            # Bare in the textproto, a STRING in proto3-JSON — JSON numbers
+            # cannot carry the full int64 range without loss, so the wire format
+            # quotes them. `size_bytes` is the first 64-bit field in the fleet.
+            value = m.group("number")
         else:
             raw = m.group("number")
             if spec["kind"] != "number":

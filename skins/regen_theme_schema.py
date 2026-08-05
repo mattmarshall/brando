@@ -48,7 +48,17 @@ _NUMERIC = {
     _FD.TYPE_DOUBLE, _FD.TYPE_FLOAT, _FD.TYPE_INT32, _FD.TYPE_FIXED32,
     _FD.TYPE_UINT32, _FD.TYPE_SFIXED32, _FD.TYPE_SINT32,
 }
+# 64-bit integers are the one type whose two encodings genuinely DISAGREE: a
+# textproto writes `size_bytes: 4096` bare, but proto3-JSON writes "4096" as a
+# STRING, because JSON numbers cannot hold the full int64 range without loss.
+# They therefore need their own kind — classified as "number" the JSON is wrong,
+# classified as "string" the parser rejects the unquoted textproto token.
+_INT64 = {
+    _FD.TYPE_INT64, _FD.TYPE_UINT64, _FD.TYPE_FIXED64,
+    _FD.TYPE_SFIXED64, _FD.TYPE_SINT64,
+}
 _BOOL = _FD.TYPE_BOOL
+_ENUM = _FD.TYPE_ENUM
 _MESSAGE = _FD.TYPE_MESSAGE
 
 
@@ -76,8 +86,15 @@ def build(descriptor_set_path: str, root: str) -> dict:
                 pending.append(field.message_type.full_name)
             elif field.type in _NUMERIC:
                 entry["kind"] = "number"
+            elif field.type in _INT64:
+                entry["kind"] = "int64"
             elif field.type == _BOOL:
                 entry["kind"] = "bool"
+            elif field.type == _ENUM:
+                # proto3-JSON writes an enum as its name string; a textproto
+                # writes it as a BARE IDENTIFIER, which a tokenizer would
+                # otherwise read as the next field name.
+                entry["kind"] = "enum"
             else:
                 entry["kind"] = "string"
             fields[field.name] = entry

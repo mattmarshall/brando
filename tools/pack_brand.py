@@ -4,7 +4,17 @@
 A `.brando` is a zip holding:
 
     brand.binpb          a brando.v1.BrandPackage — the typed manifest
+    brand.json           the SAME manifest as proto3-JSON
     assets/<sha256>      every artifact, addressed by the hash of its bytes
+
+THE MANIFEST IS CARRIED TWICE, ON PURPOSE. `rules_brand` has to know what is in a
+package before it can generate targets for it, and that decision happens in a
+REPO RULE — Starlark, with no protobuf runtime and no way to acquire one (a repo
+rule runs before any toolchain exists). Starlark does have `json.decode`. So the
+archive ships the binpb for anything with a proto runtime and the JSON for Bazel,
+both produced from the one textproto `manifest` mode writes, so they cannot
+disagree. The JSON is a convenience encoding of the proto, never a second source
+of truth.
 
 CONTENT-ADDRESSED INSIDE, NAMED OUTSIDE. The manifest maps a stable logical name
 ("theme.json", "mark/aion_mark.svg") to a hash path, so identical bytes appear
@@ -28,7 +38,7 @@ could then diagnose.
 output, and the manifest has to pass through `protoc --encode` in between.)
 
 CLI: pack_brand.py manifest --spec S --out M --asset '...'...
-     pack_brand.py zip --manifest brand.binpb --out A --asset '...'...
+     pack_brand.py zip --manifest brand.binpb --json brand.json --out A --asset '...'...
 
      --asset 'NAME=PATH[;kind=K][;variant=V][;size_px=N][;mode=M]'
 """
@@ -161,17 +171,21 @@ def _zip(args) -> int:
             data = fh.read()
         blobs[_blob_path(data)] = data
 
+    def _add(z, name, data):
+        info = zipfile.ZipInfo(name, fixed)
+        info.external_attr = 0o644 << 16
+        z.writestr(info, data)
+
     with open(args.manifest, "rb") as fh:
         manifest = fh.read()
 
     with zipfile.ZipFile(args.out, "w", zipfile.ZIP_DEFLATED) as z:
-        info = zipfile.ZipInfo("brand.binpb", fixed)
-        info.external_attr = 0o644 << 16
-        z.writestr(info, manifest)
+        _add(z, "brand.binpb", manifest)
+        if args.json:
+            with open(args.json, "rb") as fh:
+                _add(z, "brand.json", fh.read())
         for name in sorted(blobs):
-            info = zipfile.ZipInfo(name, fixed)
-            info.external_attr = 0o644 << 16
-            z.writestr(info, blobs[name])
+            _add(z, name, blobs[name])
 
     print("pack_brand: wrote %s (%d blob(s))" % (args.out, len(blobs)))
     return 0
@@ -191,6 +205,8 @@ def main(argv=None) -> int:
 
     z = sub.add_parser("zip")
     z.add_argument("--manifest", required=True)
+    z.add_argument("--json", default="", help="the same manifest as proto3-JSON, "
+                   "so a Starlark repo rule can read the package")
     z.add_argument("--out", required=True)
     z.add_argument("--asset", action="append", default=[])
 

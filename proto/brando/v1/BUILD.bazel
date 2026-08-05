@@ -9,7 +9,12 @@ api-linter test, and any language bindings are a separate, explicit choice.
 which is what lets AIP-191 pass unwaived.
 """
 
+load("@rules_python//python:defs.bzl", "py_test")
 load("//tools/proto:defs.bzl", "proto_descriptor_set")
+
+# `brand_package` reads this from another package, and `rules_brand` consumers
+# never see it — it is baked into the archive at pack time.
+exports_files(["brand_schema.json"])
 load("@rules_aip//aip:defs.bzl", "AIP_WKT_DEPS", "aip_proto_library", "aip_proto_lint")
 
 package(default_visibility = ["//visibility:public"])
@@ -60,4 +65,39 @@ test_suite(
 proto_descriptor_set(
     name = "brand_descriptor_set",
     proto = ":brand_proto",
+)
+
+# The schema map that lets STARLARK read a .brando manifest.
+#
+# rules_brand's repo rule has to know what is in a package to generate targets for
+# it, and Starlark cannot parse protobuf — but it has json.decode. So a .brando
+# carries the manifest twice: brand.binpb for anything with a proto runtime, and
+# brand.json for Bazel. This is the map that produces the second, derived from the
+# same descriptor set by the same generator the theme schema uses.
+genrule(
+    name = "brand_schema_regenerated",
+    srcs = [":brand_descriptor_set"],
+    outs = ["brand_schema.regenerated.json"],
+    cmd = (
+        "$(execpath //skins:regen_theme_schema) " +
+        "--descriptor_set $(execpath :brand_descriptor_set) " +
+        "--root brando.v1.BrandPackage --out $@"
+    ),
+    tools = ["//skins:regen_theme_schema"],
+)
+
+py_test(
+    name = "brand_schema_test",
+    size = "small",
+    srcs = ["//skins:theme_schema_test.py"],
+    data = [
+        "brand_schema.json",
+        ":brand_schema_regenerated",
+    ],
+    env = {
+        "COMMITTED": "$(rootpath brand_schema.json)",
+        "REGENERATED": "$(rootpath :brand_schema_regenerated)",
+        "SCHEMA_KIND": "brand",
+    },
+    main = "theme_schema_test.py",
 )
