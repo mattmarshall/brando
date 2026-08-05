@@ -16,6 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bazel test //... --keep_going
+      # `bazel test` only builds what a test depends on. The .brando packages,
+      # the publish plans, the console site and every example brand's artifacts
+      # are BUILD targets with no test above them, so none of them were being
+      # built in CI at all -- a broken package or a broken site would have
+      # failed at publish or at deploy rather than on the PR that broke it.
+      - run: bazel build //... --keep_going
 
   # brando's own rules are exercised in-repo (//skins:fixture, //doc:fixture_class,
   # //mdbook:fixture_theme, //selfbrand). What no in-repo test can cover is the
