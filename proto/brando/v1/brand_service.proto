@@ -1,0 +1,515 @@
+// brando.v1 — the resource-oriented surface over a brand.
+//
+// WHAT IS A RESOURCE HERE, AND WHY. `brand.proto` declares the DATA: a BrandSpec
+// is what a human or a model authors, a BrandPackage is what a build emits. This
+// file declares the RPCs, and the split matters — a package is an artifact with a
+// hash, not a mutable resource, so it is *returned* by a method rather than
+// being one.
+//
+// Brands are versioned because the console has to diff them. A brand's current
+// state is `brands/{brand}`; every accepted edit also lands as an immutable
+// `brands/{brand}/revisions/{revision}` (AIP-162), so "what did the palette look
+// like before the rebrand" is a Get rather than an archaeology exercise.
+//
+// RENDERING IS AN OPERATION, NOT A FIELD. Producing a package means running the
+// generators — CSG, rasterization, LaTeX — which takes seconds to minutes. That
+// is an LRO (AIP-151), and making it one from the start is the difference between
+// a service that can grow a queue and one that cannot.
+syntax = "proto3";
+
+package brando.v1;
+
+option java_multiple_files = true;
+option java_outer_classname = "BrandServiceProto";
+option java_package = "dev.brando.v1";
+
+import "brando/v1/brand.proto";
+import "google/api/field_behavior.proto";
+import "google/api/client.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// A brand under management: its authored spec, plus where it came from.
+//
+// The spec is the whole of the brand's *intent*. Everything else on this message
+// is bookkeeping the service needs and an author does not write.
+message Brand {
+  option (google.api.resource) = {
+    type: "brando.dev/Brand"
+    pattern: "brands/{brand}"
+    singular: "brand"
+    plural: "brands"
+  };
+
+  // `brands/{brand}`. The brand id is the resource id: they are the same string
+  // a repo already uses, and inventing a second identifier would mean every
+  // consumer carries a mapping.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  BrandSpec spec = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The revision this brand currently resolves to. Advances on every accepted
+  // update, so a consumer can pin exactly what it reviewed.
+  string current_revision = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  google.protobuf.Timestamp create_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+  google.protobuf.Timestamp update_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Where the brand is authored, when it is authored in a repo rather than here.
+  // Both are legitimate: `brand_suite` in a repo and this service are two drivers
+  // over one library, and a brand may live in either.
+  string source_repo = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // An opaque token for optimistic concurrency. Two editors and one palette is
+  // the ordinary case for a brand, not an exotic one.
+  string etag = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// An immutable point in a brand's history (AIP-162).
+message BrandRevision {
+  option (google.api.resource) = {
+    type: "brando.dev/BrandRevision"
+    pattern: "brands/{brand}/revisions/{revision}"
+    singular: "brandRevision"
+    plural: "brandRevisions"
+  };
+
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // The spec as of this revision. Stored whole rather than as a diff: a brand is
+  // small, and a diff chain means a reader cannot answer "what was it" without
+  // replaying history correctly.
+  BrandSpec spec = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  google.protobuf.Timestamp create_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Why this revision exists, from whoever made it. A palette change with no
+  // stated reason is the thing brandbooks exist to prevent.
+  string description = 4;
+}
+
+// One built artifact, as an addressable resource.
+//
+// NOT the same thing as `brando.v1.Asset`, and the distinction is load-bearing.
+// `Asset` is a MANIFEST ENTRY inside a package: its `name` is the logical name a
+// consumer asks for ("theme.css"), and it exists in an archive that may never
+// touch this service. A `BrandAsset` is the same artifact once the service is
+// serving it, and its `name` is a resource name (`brands/x/assets/y`) because
+// that is what an API addresses by. Collapsing them would mean either the
+// archive carries resource names it cannot know, or the API keys on a string
+// that is not unique across brands.
+message BrandAsset {
+  option (google.api.resource) = {
+    type: "brando.dev/BrandAsset"
+    pattern: "brands/{brand}/assets/{asset}"
+    singular: "brandAsset"
+    plural: "brandAssets"
+  };
+
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // What a consumer asks for: `theme.css`, `mark.svg`. This is the manifest
+  // `Asset.name`, carried through. Called `logical_id` rather than
+  // `logical_name` because AIP-122 reserves the `_name` suffix for resource
+  // names, and this is emphatically not one -- it is unique within a brand, not
+  // across the service.
+  string logical_id = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  ArtifactKind kind = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+  string media_type = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+  int64 size_bytes = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+  string sha256 = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// ── BrandService ──
+service BrandService {
+  rpc GetBrand(GetBrandRequest) returns (Brand) {
+    option (google.api.method_signature) = "name";
+  }
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
+  rpc CreateBrand(CreateBrandRequest) returns (Brand) {
+    option (google.api.method_signature) = "brand,brand_id";
+  }
+  rpc UpdateBrand(UpdateBrandRequest) returns (Brand) {
+    option (google.api.method_signature) = "brand,update_mask";
+  }
+  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty) {
+    option (google.api.method_signature) = "name,etag";
+  }
+
+  // The manifest of a brand's most recently built package.
+  //
+  // Separate from GetBrand because it answers a different question: GetBrand
+  // says what the brand IS, this says what was last BUILT from it. Those differ
+  // whenever a spec has been edited and not yet rendered, and conflating them
+  // would hide exactly that gap.
+  rpc GetBrandPackage(GetBrandPackageRequest) returns (BrandPackage) {
+    option (google.api.method_signature) = "name";
+  }
+}
+
+message GetBrandRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+}
+
+message ListBrandsRequest {
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // AIP-160. The console filters by what a human looks for -- id, display name,
+  // and whether the palette passes the contrast gate.
+  string filter = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListBrandsResponse {
+  repeated Brand brands = 1;
+  string next_page_token = 2;
+}
+
+message CreateBrandRequest {
+  // The brand id, which becomes the resource id. Supplied by the caller rather
+  // than generated: a brand's id is a name people type, not a surrogate key.
+  string brand_id = 1 [(google.api.field_behavior) = REQUIRED];
+
+  Brand brand = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message UpdateBrandRequest {
+  Brand brand = 1 [(google.api.field_behavior) = REQUIRED];
+
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteBrandRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+
+  string etag = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Delete the brand's revisions and assets with it. Without this, deleting a
+  // brand that has either fails -- which is the right default, since a brand's
+  // history is the thing you would least want to remove by accident.
+  bool force = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The package built from a brand's CURRENT spec.
+//
+// There is deliberately no `revision` field: AIP-131 wants a Get to take a name
+// and nothing else, and a revision-scoped package is addressed by naming the
+// revision -- which `RevisionService.GetBrandRevision` already does. Adding a
+// selector here would give two ways to ask one question.
+message GetBrandPackageRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+}
+
+// ── RevisionService ──
+service RevisionService {
+  rpc GetBrandRevision(GetBrandRevisionRequest) returns (BrandRevision) {
+    option (google.api.method_signature) = "name";
+  }
+  rpc ListBrandRevisions(ListBrandRevisionsRequest) returns (ListBrandRevisionsResponse) {
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Move a brand back to an earlier revision. A new revision is created rather
+  // than history being truncated -- a rollback is an event worth keeping, and
+  // rewriting the past makes "why does this look different" unanswerable.
+  rpc RollbackBrand(RollbackBrandRequest) returns (Brand);
+}
+
+message GetBrandRevisionRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/BrandRevision"}
+  ];
+}
+
+message ListBrandRevisionsRequest {
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListBrandRevisionsResponse {
+  repeated BrandRevision brand_revisions = 1;
+  string next_page_token = 2;
+}
+
+message RollbackBrandRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+
+  // The revision to restore. An ID, not a full resource name: the brand is
+  // already identified by `name`, so repeating it would allow the two to
+  // disagree (AIP-162).
+  string revision_id = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// ── AssetService ──
+service AssetService {
+  rpc GetBrandAsset(GetBrandAssetRequest) returns (BrandAsset) {
+    option (google.api.method_signature) = "name";
+  }
+  rpc ListBrandAssets(ListBrandAssetsRequest) returns (ListBrandAssetsResponse) {
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Where to fetch an asset's BYTES.
+  //
+  // The control plane is gRPC and the data plane is an ordinary URL, which is
+  // the split `walk.evidence.v1` already uses in this fleet. Streaming bytes
+  // back over gRPC would mean the service is on the path of every image request
+  // a browser makes, for no benefit -- a signed URL lets a CDN answer instead.
+  rpc ResolveBrandAssetUri(ResolveBrandAssetUriRequest) returns (ResolveBrandAssetUriResponse) {
+    option (google.api.method_signature) = "name";
+  }
+}
+
+message GetBrandAssetRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/BrandAsset"}
+  ];
+}
+
+message ListBrandAssetsRequest {
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // AIP-160, e.g. `kind = ARTIFACT_KIND_MARK_SVG`.
+  string filter = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ListBrandAssetsResponse {
+  repeated BrandAsset brand_assets = 1;
+  string next_page_token = 2;
+}
+
+message ResolveBrandAssetUriRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/BrandAsset"}
+  ];
+}
+
+message ResolveBrandAssetUriResponse {
+  string uri = 1;
+
+  // When the URI stops working. Absent means it does not expire, which is the
+  // ordinary case for a content-addressed public asset.
+  google.protobuf.Timestamp expire_time = 2;
+}
+
+// ── RenderService ──
+// Build a brand's artifacts.
+//
+// ONE LIBRARY, TWO DRIVERS. This runs the same `marklib` the Bazel rules run --
+// not a reimplementation, and not Bazel shelled out to. That is the property the
+// whole service tier is for, and it is the one worth a conformance test: the
+// same BrandSpec through `brand_suite` and through RenderBrand must produce
+// byte-identical artifacts. Without that test the claim is decoration.
+service RenderService {
+  // Produce a package from a brand's current spec.
+  //
+  // An LRO because rendering runs CSG, rasterization at every icon size, and a
+  // LaTeX pass -- seconds to minutes. Modelling it as a blocking RPC would work
+  // until the first brand with a large icon set, and then need rewriting.
+  rpc RenderBrand(RenderBrandRequest) returns (google.longrunning.Operation) {
+    option (google.longrunning.operation_info) = {
+      response_type: "RenderBrandResponse"
+      metadata_type: "RenderBrandMetadata"
+    };
+  }
+}
+
+message RenderBrandRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+
+  // Render only these kinds. Empty means the brand's declared Catalog, which is
+  // the floor a complete brand meets.
+  repeated ArtifactKind kinds = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Re-render even if a package for this spec digest already exists. Off by
+  // default: rendering is deterministic, so an unchanged spec yields identical
+  // bytes and the work is pure waste.
+  bool force = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message RenderBrandResponse {
+  // Named `brand_package` rather than `package`, which is a reserved word in
+  // Java, C# and others -- generated bindings would have to mangle it.
+  BrandPackage brand_package = 1;
+
+  // Where the built `.brando` can be fetched, and how to pin it.
+  string package_uri = 2;
+  string package_integrity = 3;
+}
+
+message RenderBrandMetadata {
+  google.protobuf.Timestamp start_time = 1;
+
+  // The kind currently being produced, for a progress display that says
+  // something more useful than a spinner.
+  ArtifactKind current_kind = 2;
+
+  int32 completed_count = 3;
+  int32 total_count = 4;
+}
+
+// ── StudioService ──
+// The model-assisted surface.
+//
+// WHAT THE MODEL DOES AND DOES NOT DO. It proposes a BrandSpec, writes copy,
+// and critiques a brand. It does NOT draw: `ProposeSpec` returns structured
+// output over the BrandSpec schema, so the model picks numbers and the
+// deterministic CSG pipeline executes them exactly. A mark that a model drew
+// pixel by pixel could not be re-rendered at another size, which is the whole
+// reason marklib exists.
+//
+// EVERY METHOD IS CACHED BY SPEC DIGEST. `plugin-builds` learned this the
+// expensive way -- an uncached model call on a read path re-bills on every
+// viewer. A critique of an unchanged brand is the same critique.
+//
+// AND EVERY METHOD FAILS OPEN. With no model configured the service returns a
+// deterministic result rather than an error: a brand pipeline that stops working
+// because a model endpoint is down has taken a hard dependency it never needed.
+service StudioService {
+  // Draft a BrandSpec from a prose brief.
+  rpc ProposeSpec(ProposeSpecRequest) returns (google.longrunning.Operation) {
+    option (google.longrunning.operation_info) = {
+      response_type: "ProposeSpecResponse"
+      metadata_type: "StudioMetadata"
+    };
+  }
+
+  // Write the prose a brand needs: positioning, story, voice, usage rules.
+  rpc DraftCopy(DraftCopyRequest) returns (google.longrunning.Operation) {
+    option (google.longrunning.operation_info) = {
+      response_type: "DraftCopyResponse"
+      metadata_type: "StudioMetadata"
+    };
+  }
+
+  // Review a brand and say what is wrong with it.
+  rpc CritiqueBrand(CritiqueBrandRequest) returns (google.longrunning.Operation) {
+    option (google.longrunning.operation_info) = {
+      response_type: "CritiqueBrandResponse"
+      metadata_type: "StudioMetadata"
+    };
+  }
+}
+
+message ProposeSpecRequest {
+  // What the brand is for, in prose. The same thing a human would tell a
+  // designer at the start of an engagement.
+  string brief = 1 [(google.api.field_behavior) = REQUIRED];
+
+  string brand_id = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Colours, faces or metrics that are already decided. A rebrand usually is not
+  // starting from nothing.
+  BrandSpec constraints = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message ProposeSpecResponse {
+  BrandSpec spec = 1;
+
+  // Why the model chose what it chose, so a human can argue with the reasoning
+  // rather than only with the result.
+  string rationale = 2;
+
+  // Contrast findings on the proposed palette, computed rather than asserted.
+  // A model can produce a plausible palette that fails WCAG, and asking it to
+  // check its own arithmetic is the wrong tool.
+  repeated ContrastFinding contrast = 3;
+}
+
+message DraftCopyRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+
+  // Which parts to write. Empty means everything the Identity is missing.
+  repeated string fields = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DraftCopyResponse {
+  Identity identity = 1;
+}
+
+message CritiqueBrandRequest {
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "brando.dev/Brand"}
+  ];
+}
+
+message CritiqueBrandResponse {
+  // What the model thinks is wrong, in its own words.
+  repeated Critique critiques = 1;
+
+  // What the CHECKER found, which is a different kind of claim: contrast is
+  // arithmetic, not opinion, and the two are kept apart so a reader knows which
+  // findings are negotiable.
+  repeated ContrastFinding contrast = 2;
+}
+
+message Critique {
+  // The part of the brand this is about, e.g. `theme.light.accent`.
+  string subject = 1;
+
+  string finding = 2;
+
+  // A concrete suggested change, where there is one. Absent means the model has
+  // an objection but not a fix, which is worth saying rather than inventing one.
+  string suggestion = 3;
+
+  Severity severity = 4;
+
+  enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    // Worth considering.
+    SEVERITY_NOTE = 1;
+    // Contradicts something the brand states about itself.
+    SEVERITY_INCONSISTENT = 2;
+    // Would fail an accessibility or licensing requirement.
+    SEVERITY_BLOCKING = 3;
+  }
+}
+
+message StudioMetadata {
+  google.protobuf.Timestamp start_time = 1;
+
+  // Which model answered, or empty when the deterministic fallback did. A reader
+  // should never have to guess whether a critique came from a model.
+  string model_id = 2;
+
+  // True when this came from cache rather than a fresh call.
+  bool cached = 3;
+}

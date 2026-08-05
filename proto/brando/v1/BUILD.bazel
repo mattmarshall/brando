@@ -15,7 +15,7 @@ load("//tools/proto:defs.bzl", "proto_descriptor_set")
 # `brand_package` reads this from another package, and `rules_brand` consumers
 # never see it — it is baked into the archive at pack time.
 exports_files(["brand_schema.json"])
-load("@rules_aip//aip:defs.bzl", "AIP_WKT_DEPS", "aip_proto_library", "aip_proto_lint")
+load("@rules_aip//aip:defs.bzl", "AIP_LRO_DEPS", "AIP_WKT_DEPS", "aip_proto_library", "aip_proto_lint")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -24,6 +24,48 @@ aip_proto_library(
     srcs = ["brand.proto"],
     strip_import_prefix = "/proto",
     deps = AIP_WKT_DEPS + ["@meridian_schemas//proto:theme_proto"],
+)
+
+# The RESOURCE-ORIENTED surface. Separate target from `brand_proto` because the
+# two earn different waivers: a data contract declares no services and so cannot
+# satisfy AIP's method rules, while this file is exactly what those rules are for
+# and should be held to them.
+aip_proto_library(
+    name = "brand_service_proto",
+    srcs = ["brand_service.proto"],
+    strip_import_prefix = "/proto",
+    # LRO deps because RenderService and StudioService return Operations:
+    # rendering runs the generators (CSG, rasterization, LaTeX) and a Bedrock
+    # call is a network round trip. Both are operations from the start rather
+    # than blocking RPCs that later need rewriting.
+    deps = AIP_WKT_DEPS + AIP_LRO_DEPS + [":brand_proto"],
+)
+
+aip_proto_lint(
+    name = "brand_service_proto_aip_lint",
+    proto = ":brand_service_proto",
+    disable_rules = [
+        # These two fire ~200 times, and 120 + 86 of those are in the
+        # TRANSITIVELY INCLUDED brand.proto rather than in this file: the linter
+        # walks the whole descriptor set, so a dependency's findings surface
+        # through its dependent. brand.proto has its own lint target and its own
+        # considered waivers for exactly these; re-deciding them here would mean
+        # one file's rules are settled in two places. The findings that were
+        # genuinely in THIS file were fixed rather than waived.
+        "core::0203::field-behavior-required",
+        "core::0192::has-comments",
+        # AIP-127 wants `google.api.http` on every method, for REST transcoding.
+        # These services are gRPC-only. Annotating them would declare a REST
+        # surface nothing serves, which is a worse failure than not having one --
+        # a generated client would offer URLs that 404. Add the annotations at
+        # the point a gateway actually goes in front.
+        "core::0127::http-annotation",
+        # AIP-191 wants services before messages. This file groups each service
+        # with the request and response messages only it uses, which is what
+        # makes a 500-line API file readable; hoisting five service blocks to the
+        # top would separate every method from its own types.
+        "core::0191::file-layout",
+    ],
 )
 
 aip_proto_lint(
