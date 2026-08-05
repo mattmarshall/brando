@@ -65,7 +65,7 @@ brand_suite(
     spec = "leangres.textproto",
     skin = "leangres.textpb",
     brando_version = VERSION,
-    publish_base_url = "https://github.com/mattmarshall/brando/releases/download/v0.4.0",
+    publish_base_url = "https://github.com/mattmarshall/brando/releases/download/v0.5.0",
     publish_prefix = "",
     source_repo = "tomato-bazel/leangres",
 )

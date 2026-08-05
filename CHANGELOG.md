@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.5.0 — the Catalog is checked, and packages live on GitHub Releases
+
+### Added
+
+* **`//tools:catalog_check`** — `brando.v1.Catalog` names the artifact kinds a
+  complete brand includes, and nothing verified it. A declaration nothing checks
+  is a comment that looks like data, and this one was already false: citizen-sh
+  declared `ARTIFACT_KIND_MDBOOK_THEME` and shipped a package without one.
+  Nothing errored — `rules_brand` generated an EMPTY `:mdbook_theme` filegroup,
+  the docs would have built unstyled, and a reader would have been the first to
+  know. The archive now depends on the gate, so a non-conformant package cannot
+  be produced. Shipping MORE than declared stays legal: a Catalog is the floor,
+  not the ceiling.
+* **The mdBook theme travels in a package.** An earlier note claimed it could not,
+  because it is a directory. It is not — `brand_mdbook_theme` declares each of its
+  six files as its own out. The wrong claim survived precisely because nothing
+  compared the Catalog to the package.
+
+### Changed
+
+* **Packages publish to GitHub Releases, not to a CDN bucket.** The previous
+  version pushed to aion's S3 + CloudFront lane on the reasoning that reusing
+  infrastructure beats building it. That weighed whether the infrastructure
+  existed and never weighed *whose* it was: brando and most of the brands it
+  packages are personal projects. Everything published there was removed.
+
+  Mechanically: release assets are flat filenames, so `prefix = ""` now yields a
+  flat key. `publish_brando.sh` uploads via `gh release upload` and gained a
+  second guard — it already refused a plan whose sha did not match the file, and
+  now also refuses one whose URL does not match the release being uploaded to.
+
+  **Immutability now comes from the pin, not the host.** A content-addressed S3
+  key cannot change meaning; a release asset *can* be replaced. `from_url`
+  requires `integrity`, so a swapped asset fails the fetch rather than restyling
+  every consumer.
+
 ## 0.4.0 — a brand should start complete, and be publishable
 
 Additive. Every 0.3.0 rule keeps its behavior.

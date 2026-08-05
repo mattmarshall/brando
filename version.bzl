@@ -10,4 +10,4 @@ The duplication is unavoidable; the drift is not. `//:version_test` reads both
 and fails if they disagree.
 """
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"

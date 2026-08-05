@@ -45,7 +45,7 @@ brand_suite(
     ],
     mark = ":gen_mark",
     rasterizer = ":raster_mark",
-    publish_base_url = "https://github.com/mattmarshall/brando/releases/download/v0.4.0",
+    publish_base_url = "https://github.com/mattmarshall/brando/releases/download/v0.5.0",
     publish_prefix = "",
     sizes = [
         # 256 is not decorative: `.ico` is packed from it, and render_set fails
