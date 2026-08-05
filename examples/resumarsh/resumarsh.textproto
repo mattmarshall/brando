@@ -1,0 +1,32 @@
+# resumarsh — the BrandSpec.
+id: "resumarsh"
+display_name: "resumarsh"
+
+identity {
+  legal_name: "resumarsh"
+  tagline: "Every resume has a story to tell."
+  positioning:
+    "A resume is structured data -- sections, items, events, references -- and "
+    "resumarsh models it that way, so the same career can be rendered, queried "
+    "and re-told without being retyped."
+  story:
+    "Most resume tools treat the document as the artifact and the career as "
+    "whatever fits on it. resumarsh inverts that: the career is the artifact, "
+    "typed and durable, and a document is one rendering of it among many."
+  voice: "Plain and human. It is somebody's working life, not a record set."
+  voice:
+    "Never imply a resume is scored. The product structures a story; it does not "
+    "rank people."
+  usage_rules:
+    "The accent marks the one line that carries the story. Highlighting every "
+    "line is the same as highlighting none."
+  usage_rules: "Set the name lowercase."
+}
+
+catalog {
+  kinds: ARTIFACT_KIND_THEME_BINPB
+  kinds: ARTIFACT_KIND_THEME_JSON
+  kinds: ARTIFACT_KIND_THEME_CSS
+  kinds: ARTIFACT_KIND_MARK_SVG
+  kinds: ARTIFACT_KIND_MARK_PNG
+}

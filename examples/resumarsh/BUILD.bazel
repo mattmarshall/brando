@@ -1,0 +1,64 @@
+"""resumarsh — a brand authored from nothing, to see what that now costs.
+
+leangres and citizen-sh were the two exercises this work was built for. resumarsh
+was not: it is a product that simply needed an identity, which makes it the
+honest measure. A skin, a spec, a generator and one `brand_suite` call, with
+nothing copied from another brand's BUILD file.
+"""
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//:version.bzl", "VERSION")
+load("//pkg:suite.bzl", "brand_suite")
+
+py_binary(
+    name = "gen_mark",
+    srcs = ["gen_mark.py"],
+    deps = ["//marklib"],
+)
+
+py_binary(
+    name = "raster_mark",
+    srcs = ["raster_mark.py"],
+    deps = [
+        ":gen_mark_lib",
+        "//marklib",
+        "//marklib:raster",
+    ],
+)
+
+py_library(
+    name = "gen_mark_lib",
+    srcs = ["gen_mark.py"],
+    # The rasterizer does `from gen_mark import ...`, so the module has to be
+    # importable by its bare name rather than as a package path.
+    imports = ["."],
+    deps = ["//marklib"],
+)
+
+brand_suite(
+    name = "resumarsh",
+    brando_version = VERSION,
+    layers = [
+        "lines.svg",
+        "story.svg",
+        "svg",
+    ],
+    mark = ":gen_mark",
+    rasterizer = ":raster_mark",
+    publish_base_url = "https://static.aion.savvifi.dev",
+    sizes = [
+        # 256 is not decorative: `.ico` is packed from it, and render_set fails
+        # loudly rather than quietly if the size it needs was never rendered.
+        256,
+        512,
+        1024,
+    ],
+    skin = "resumarsh.textpb",
+    source_repo = "resumarsh/resumarsh",
+    spec = "resumarsh.textproto",
+    variants = [
+        "flat",
+        "inkbg",
+        "transparent",
+    ],
+)

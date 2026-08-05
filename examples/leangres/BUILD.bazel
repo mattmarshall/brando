@@ -8,17 +8,60 @@ hand-maintained `outs` list that has to mirror a Python dict. That is why
 `fastverk` produces seventeen artifact types and `graph` and `savault` produce
 two — every brand stopped wherever its author's patience did.
 
-leangres has no mark yet, and that is deliberate: a brand should not be blocked
-from having a theme, a stylesheet, an mdBook theme, a LaTeX class and a
-distributable package just because nobody has drawn a logo. `mark` is optional;
-add a `py_binary` against `marklib` later and the icons appear.
+leangres shipped its theme, stylesheet, mdBook theme, LaTeX class and package
+BEFORE it had a mark, which is the property `mark = None` exists for: a brand
+should not be blocked from having a stylesheet because nobody has drawn a logo.
+The mark arrived later, and adding it was two attributes.
 """
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("//pkg:suite.bzl", "brand_suite")
 load("//:version.bzl", "VERSION")
 
+py_binary(
+    name = "gen_mark",
+    srcs = ["gen_mark.py"],
+    deps = ["//marklib"],
+)
+
+py_library(
+    name = "gen_mark_lib",
+    srcs = ["gen_mark.py"],
+    # The rasterizer does `from gen_mark import ...`, so the module has to be
+    # importable by its bare name rather than as a package path.
+    imports = ["."],
+    deps = ["//marklib"],
+)
+
+py_binary(
+    name = "raster_mark",
+    srcs = ["raster_mark.py"],
+    deps = [
+        ":gen_mark_lib",
+        "//marklib",
+        "//marklib:raster",
+    ],
+)
+
 brand_suite(
     name = "leangres",
+    layers = [
+        "turnstile.svg",
+        "halmos.svg",
+        "svg",
+    ],
+    mark = ":gen_mark",
+    rasterizer = ":raster_mark",
+    sizes = [
+        256,
+        512,
+        1024,
+    ],
+    variants = [
+        "flat",
+        "inkbg",
+        "transparent",
+    ],
     spec = "leangres.textproto",
     skin = "leangres.textpb",
     brando_version = VERSION,

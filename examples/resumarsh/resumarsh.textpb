@@ -1,0 +1,73 @@
+# resumarsh — every resume has a story to tell.
+#
+# A FIRST DRAFT, not a decided identity.
+#
+# The reasoning. resumarsh models a career as STRUCTURED DATA -- sections, items,
+# events, references -- and then argues that the structure is a narrative, not a
+# form. So the palette is editorial rather than corporate: a warm near-black that
+# reads as ink on paper, and a deep plum accent.
+#
+# Plum, specifically, because the fleet's other identities are already blue
+# (aion, savvi), amber (fastverk), red (tomato) and green (leangres, citizen-sh),
+# and because a resume product reaching for corporate blue would look like every
+# applicant-tracking system it is trying not to be. Plum is warm without being
+# loud, and it is the colour of an editor's pen rather than a compliance form.
+id: "resumarsh"
+display_name: "resumarsh"
+
+light {
+  bg: "#FCFBFA"            # warm paper
+  surface: "#F4F1EE"
+  fg: "#1A1618"
+  muted: "#5C5257"
+  accent: "#7A2E52"        # plum, deepened until it is readable AS TEXT
+  accent_strong: "#4F1B35"
+  on_accent: "#FFFFFF"
+  border: "#E0D9D4"
+  danger: "#A33327"
+  success: "#2A6B4F"
+  warning: "#8A6320"
+  info: "#2B5980"
+  code_fg: "#6B2848"
+}
+
+dark {
+  bg: "#171416"
+  surface: "#211C20"
+  fg: "#F0EBEC"
+  muted: "#A39AA0"
+  accent: "#D98BAF"        # plum, lifted for a dark ground
+  accent_strong: "#EBB6CE"
+  on_accent: "#2A0F1C"
+  border: "#332B31"
+  danger: "#E08276"
+  success: "#6FBF9A"
+  warning: "#DDB367"
+  info: "#84B4D8"
+  code_fg: "#E0A9C4"
+}
+
+typography {
+  sans: "Space Grotesk"
+  display: "Space Grotesk"
+  mono: "JetBrains Mono"
+  heading_weight: 600
+  body_weight: 400
+  heading_tracking: "-0.01em"
+  base_size_px: 16
+  fonts {
+    family: "Space Grotesk"
+    weight: "500"
+    src_uri: "https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPb54C-s.woff2"
+  }
+  fonts {
+    family: "Space Grotesk"
+    weight: "600"
+    src_uri: "https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPbx4C-s.woff2"
+  }
+}
+
+metrics {
+  radius_px: 6
+  unit_px: 8
+}
