@@ -8,3 +8,16 @@ python-docx
 # binpb through the theme descriptor set. This is what retires the hand-maintained
 # _INT_FIELDS/_REPEATED_FIELDS tables that caused the 0.1.1 repeated-field bug.
 protobuf
+
+# gRPC, for //service. Only brando's own builds see these: a brand repo has its
+# own pip hub and never depends on the service tier. grpcio-tools carries protoc
+# and the Python plugin, which is what generates the stubs -- rules_aip is a
+# LINTING toolkit and says stub generation is out of scope, so this is the
+# explicit codegen choice it leaves to the caller.
+grpcio
+grpcio-tools
+# google.api.* (field_behavior, resource, client) and google.longrunning, which
+# the generated stubs import. Shipped as a wheel rather than generated from the
+# descriptor set: these are Google's own published bindings, and generating a
+# second copy is how two incompatible `Operation` types end up in one process.
+googleapis-common-protos

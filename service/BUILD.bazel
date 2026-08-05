@@ -12,9 +12,55 @@ packages off a company CDN it would be strange to put its services on a company
 cluster without deciding that first.
 """
 
-load("@rules_python//python:defs.bzl", "py_library", "py_test")
+load("@brando_pip//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
+
+# ── generated stubs ──────────────────────────────────────────────────────────
+#
+# rules_aip lints; it does not generate. This is the explicit codegen choice it
+# leaves to the caller, driven from the descriptor set the lint gate already
+# passed over.
+py_binary(
+    name = "gen_stubs",
+    srcs = ["gen_stubs.py"],
+    deps = [requirement("grpcio-tools")],
+)
+
+genrule(
+    name = "stubs",
+    srcs = ["//proto/brando/v1:brand_service_descriptor_set"],
+    outs = [
+        # meridian's Theme, which brand.proto imports. The generated
+        # brand_pb2 does `from proto import theme_pb2`, so it has to be
+        # generated alongside -- the descriptor set already carries it, because
+        # proto_descriptor_set closes over imports.
+        "proto/theme_pb2.py",
+        "brando/v1/brand_pb2.py",
+        "brando/v1/brand_service_pb2.py",
+        "brando/v1/brand_service_pb2_grpc.py",
+    ],
+    cmd = (
+        "$(execpath :gen_stubs) " +
+        "--descriptor_set $(execpath //proto/brando/v1:brand_service_descriptor_set) " +
+        "--out_dir $(RULEDIR) " +
+        "--proto proto/theme.proto " +
+        "--proto brando/v1/brand.proto --proto brando/v1/brand_service.proto"
+    ),
+    tools = [":gen_stubs"],
+)
+
+py_library(
+    name = "brando_py_proto",
+    srcs = [":stubs"],
+    imports = ["."],
+    deps = [
+        requirement("googleapis-common-protos"),
+        requirement("grpcio"),
+        requirement("protobuf"),
+    ],
+)
 
 py_library(
     name = "render_core",
@@ -56,6 +102,38 @@ py_test(
     srcs = ["studio_test.py"],
     imports = [".."],
     deps = [":studio"],
+)
+
+py_library(
+    name = "server_lib",
+    srcs = ["server.py"],
+    imports = [".."],
+    deps = [
+        ":brando_py_proto",
+        ":render_core",
+        ":studio",
+        requirement("grpcio"),
+        requirement("protobuf"),
+    ],
+)
+
+py_binary(
+    name = "server",
+    srcs = ["server.py"],
+    imports = [".."],
+    main = "server.py",
+    deps = [":server_lib"],
+)
+
+py_test(
+    name = "server_test",
+    size = "small",
+    srcs = ["server_test.py"],
+    imports = [".."],
+    deps = [
+        ":brando_py_proto",
+        ":server_lib",
+    ],
 )
 
 py_test(

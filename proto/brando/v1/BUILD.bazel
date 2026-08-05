@@ -109,6 +109,14 @@ proto_descriptor_set(
     proto = ":brand_proto",
 )
 
+# The SERVICE descriptor set, closed over its imports. //service generates its
+# gRPC stubs from this rather than re-resolving .proto files, so the stubs cannot
+# come from a different view of the schema than the one aip_proto_lint checked.
+proto_descriptor_set(
+    name = "brand_service_descriptor_set",
+    proto = ":brand_service_proto",
+)
+
 # The schema map that lets STARLARK read a .brando manifest.
 #
 # rules_brand's repo rule has to know what is in a package to generate targets for
