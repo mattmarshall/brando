@@ -1,0 +1,63 @@
+"""The brando service tier.
+
+PYTHON, and the reason is `render_core`. The fleet's four Bedrock callers are
+Rust and the deploy lane is Rust-shaped, so Rust would be the consistent choice —
+but `marklib` is Python, and "one library, two drivers" is the point of this
+tier. A Rust front means a second process and an IPC hop on every render, and it
+makes the byte-identical conformance test an integration test across a boundary
+rather than a unit test over one function.
+
+NOTHING HERE DEPLOYS ANYWHERE YET. brando is a personal project; after moving its
+packages off a company CDN it would be strange to put its services on a company
+cluster without deciding that first.
+"""
+
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "render_core",
+    srcs = ["render_core.py"],
+    imports = [".."],
+    deps = [
+        "//marklib:palette",
+        "//marklib:tokens",
+    ],
+)
+
+# Every brand's REAL rule outputs, passed in by env. Listing them explicitly is
+# what lets `test_every_brand_is_actually_checked` fail when one goes missing —
+# a coverage gate that silently checks less is worse than no gate.
+_BRAND_JSON = {
+    "brando": "//skins:brando_json",
+    "leangres": "//examples/leangres:leangres_skin_json",
+    "citizen_sh": "//examples/citizen_sh:citizen_sh_skin_json",
+    "resumarsh": "//examples/resumarsh:resumarsh_skin_json",
+}
+
+_BRAND_CSS = {
+    "brando": "//selfbrand:brando_css",
+    "leangres": "//examples/leangres:leangres_css",
+    "citizen_sh": "//examples/citizen_sh:citizen_sh_css",
+    "resumarsh": "//examples/resumarsh:resumarsh_css",
+}
+
+py_test(
+    name = "conformance_test",
+    size = "small",
+    srcs = ["conformance_test.py"],
+    data = _BRAND_JSON.values() + _BRAND_CSS.values(),
+    env = {
+        "%s_JSON" % k.upper(): "$(rootpath %s)" % v
+        for k, v in _BRAND_JSON.items()
+    } | {
+        "%s_CSS" % k.upper(): "$(rootpath %s)" % v
+        for k, v in _BRAND_CSS.items()
+    },
+    imports = [".."],
+    deps = [
+        ":render_core",
+        "//marklib:palette",
+    ],
+)

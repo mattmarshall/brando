@@ -1,6 +1,7 @@
 load("//:version.bzl", "VERSION")
 load("//pkg:defs.bzl", "brand_publish_plan")
 load("@brando//:defs.bzl", "brand_icons", "brand_package", "brand_svgs", "brand_wordmark_glyphs")
+load("@brando//pkg:suite.bzl", "brand_css")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("@brando_pip//:requirements.bzl", "requirement")
 
@@ -306,4 +307,12 @@ brand_publish_plan(
     prefix = "",
     brand = "brando",
     version = VERSION,
+)
+
+# brando's own stylesheet. selfbrand predates `brand_suite` and wires its rules by
+# hand, so this is added directly rather than through the macro -- which is the
+# macro's documented escape hatch working as intended.
+brand_css(
+    name = "brando_css",
+    skin = "//skins:brando_json",
 )
