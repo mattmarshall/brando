@@ -25,6 +25,7 @@ _PROTOC = Label("@protobuf//:protoc")
 _DESCRIPTOR_SET = Label("//proto/brando/v1:brand_descriptor_set")
 _BRAND_SCHEMA = Label("//proto/brando/v1:brand_schema.json")
 _SKIN_JSON = Label("//skins:skin_json")
+_CATALOG_CHECK = Label("//tools:catalog_check")
 _MESSAGE = "brando.v1.BrandPackage"
 _PROTO_FILE = "brando/v1/brand.proto"
 
@@ -152,6 +153,27 @@ def brand_package(
         visibility = visibility,
     )
 
+    # 3b. Gate the manifest against its own Catalog.
+    #
+    #     `Catalog` names the kinds a complete brand includes, which is only
+    #     meaningful if something checks it. It was already false: citizen-sh
+    #     declared ARTIFACT_KIND_MDBOOK_THEME and shipped without one. Nothing
+    #     errored -- rules_brand generated an empty `:mdbook_theme` filegroup, the
+    #     docs would have built unstyled, and a reader would have been the first
+    #     to notice.
+    native.genrule(
+        name = "%s_catalog_check" % name,
+        srcs = ["%s_brand.json" % name],
+        outs = ["%s_catalog.txt" % name],
+        cmd = (
+            "$(execpath %s) " % _CATALOG_CHECK +
+            "--manifest $(execpath %s_brand.json) " % name +
+            "--out $@"
+        ),
+        tools = [_CATALOG_CHECK],
+        visibility = visibility,
+    )
+
     # 4. Write the archive: both manifests plus every blob, content-addressed.
     #    Deterministic (fixed mtimes, sorted entries) so two builds of the same
     #    brand produce identical bytes.
@@ -160,6 +182,9 @@ def brand_package(
         srcs = [
             "%s_brand.binpb" % name,
             "%s_brand.json" % name,
+            # Not consumed by the command -- it is here so the archive cannot be
+            # built without the catalog gate passing.
+            "%s_catalog.txt" % name,
         ] + labels,
         outs = ["%s.brando" % name],
         cmd = (

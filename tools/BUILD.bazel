@@ -76,3 +76,23 @@ py_test(
     imports = [".."],
     deps = [":publish_plan_lib"],
 )
+
+py_binary(
+    name = "catalog_check",
+    srcs = ["catalog_check.py"],
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "catalog_check_lib",
+    srcs = ["catalog_check.py"],
+    imports = [".."],
+)
+
+py_test(
+    name = "catalog_check_test",
+    size = "small",
+    srcs = ["catalog_check_test.py"],
+    imports = [".."],
+    deps = [":catalog_check_lib"],
+)

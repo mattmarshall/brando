@@ -269,6 +269,7 @@ def brand_suite(
     # yet. Skipping is the right failure: it should not block the theme, the
     # stylesheet, the LaTeX class or the package, all of which are mark-free.
     if mdbook and (favicon or rasterizer):
+        theme_dir = "%s_mdbook_theme" % name
         brand_mdbook_theme(
             name = "%s_mdbook" % name,
             skin = skin_json,
@@ -276,9 +277,27 @@ def brand_suite(
             medium_ttf = medium_ttf or _MEDIUM_TTF,
             semibold_ttf = semibold_ttf or _SEMIBOLD_TTF,
             font_family = font_family,
-            theme_dir = "%s_mdbook_theme" % name,
+            theme_dir = theme_dir,
             visibility = visibility,
         )
+        # The theme's SIX files, each individually. An earlier note here claimed
+        # the mdBook theme could not travel in a package because it is a
+        # directory -- it is not. `brand_mdbook_theme` declares every file as its
+        # own out, so they address like any other artifact. The claim went
+        # unchallenged because nothing checked the Catalog against the package,
+        # which is exactly what `//tools:catalog_check` now does.
+        for f in (
+            "css/custom.css",
+            "head.hbs",
+            "favicon.svg",
+            "fonts/fonts.css",
+            "fonts/brand-medium.ttf",
+            "fonts/brand-semibold.ttf",
+        ):
+            assets["mdbook/%s" % f] = {
+                "label": "%s/%s" % (theme_dir, f),
+                "kind": "ARTIFACT_KIND_MDBOOK_THEME",
+            }
 
     if latex:
         classname = latex_classname or name
