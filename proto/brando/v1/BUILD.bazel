@@ -14,7 +14,10 @@ load("//tools/proto:defs.bzl", "proto_descriptor_set")
 
 # `brand_package` reads this from another package, and `rules_brand` consumers
 # never see it — it is baked into the archive at pack time.
-exports_files(["brand_schema.json"])
+exports_files([
+    "brand_schema.json",
+    "mark_program_schema.json",
+])
 load("@rules_aip//aip:defs.bzl", "AIP_LRO_DEPS", "AIP_WKT_DEPS", "aip_proto_library", "aip_proto_lint")
 
 package(default_visibility = ["//visibility:public"])
@@ -134,6 +137,41 @@ genrule(
         "--root brando.v1.BrandPackage --out $@"
     ),
     tools = ["//skins:regen_theme_schema"],
+)
+
+# The same map, rooted at MarkProgram.
+#
+# A SECOND SCHEMA RATHER THAN A SECOND SOURCE. `brand_schema.json` is rooted at
+# BrandPackage because that is what a `.brando` manifest is; a brand authoring a
+# mark writes a bare MarkProgram, and `skin_json` starts at `schema["root"]`. Both
+# are generated from the one descriptor set by the one generator, so they cannot
+# describe different messages.
+genrule(
+    name = "mark_program_schema_regenerated",
+    srcs = [":brand_descriptor_set"],
+    outs = ["mark_program_schema.regenerated.json"],
+    cmd = (
+        "$(execpath //skins:regen_theme_schema) " +
+        "--descriptor_set $(execpath :brand_descriptor_set) " +
+        "--root brando.v1.MarkProgram --out $@"
+    ),
+    tools = ["//skins:regen_theme_schema"],
+)
+
+py_test(
+    name = "mark_program_schema_test",
+    size = "small",
+    srcs = ["//skins:theme_schema_test.py"],
+    data = [
+        "mark_program_schema.json",
+        ":mark_program_schema_regenerated",
+    ],
+    env = {
+        "COMMITTED": "$(rootpath mark_program_schema.json)",
+        "REGENERATED": "$(rootpath :mark_program_schema_regenerated)",
+        "SCHEMA_KIND": "mark_program",
+    },
+    main = "theme_schema_test.py",
 )
 
 py_test(

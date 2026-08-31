@@ -96,3 +96,17 @@ py_test(
     imports = [".."],
     deps = [":catalog_check_lib"],
 )
+
+# The MarkProgram interpreter, as a command.
+#
+# The main file is HERE rather than in `marklib/` because Python puts a script's
+# own directory first on sys.path, and `marklib/` contains `marklib.py` — so a
+# binary rooted there resolves `import marklib` to the module and cannot reach
+# `marklib.expr`. See tools/mark_program.py for the failure it produces.
+py_binary(
+    name = "mark_program",
+    srcs = ["mark_program.py"],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = ["//marklib:program"],
+)

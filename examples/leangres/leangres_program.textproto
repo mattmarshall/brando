@@ -1,0 +1,121 @@
+# leangres's mark, as a MarkProgram rather than as Python.
+#
+# `//examples:program_parity_test` holds this against `gen_mark.py`: the same
+# geometry, stated as data, asserted to emit byte-identical SVG. leangres is the
+# SMOKE TEST and not the gate -- four boxes and two unions exercise the Canvas
+# seam and nothing of the expression grammar. citizen_sh is the gate.
+#
+# WHAT IS NOT RESTATED HERE: the four hex constants at the top of `gen_mark.py`.
+# Every colour this mark uses genuinely is a palette role, so it names the role
+# and `leangres.textpb` stays the one source. That is NOT true of every mark --
+# tomato's skin states outright that its body red and calyx green "are the logo's
+# own facet colours and are not palette roles" -- which is why a literal stays
+# legal and is the default.
+
+canvas: 1024
+
+params { name: "stem_w" value: "13.0" }
+params { name: "stem_h" value: "62.0" }
+params { name: "stem_x" value: "20.0" }
+params { name: "bar_h" value: "13.0" }
+params { name: "bar_len" value: "26.0" }
+# The halmos, a square, centred on the bar.
+params { name: "qed" value: "24.0" }
+# The reveal between the bar and the halmos.
+params { name: "qed_gap" value: "9.0" }
+params { name: "base_y" value: "19.0" }
+params { name: "fit_frac" value: "0.82" }
+
+# The stem's vertical midpoint. Derived ONCE: the bar and the halmos are both
+# placed against it, and restating it is how the two come apart when the stem
+# changes height.
+params { name: "mid" value: "base_y + stem_h / 2" }
+params { name: "bar_x0" value: "stem_x + stem_w" }
+params { name: "halmos_x0" value: "bar_x0 + bar_len + qed_gap" }
+
+# The turnstile ⊢ itself: a stem, and a bar at its vertical midpoint.
+shapes {
+  name: "stem"
+  rect { x0: "stem_x" y0: "base_y" x1: "stem_x + stem_w" y1: "base_y + stem_h" }
+}
+shapes {
+  name: "bar"
+  rect {
+    x0: "bar_x0"
+    y0: "mid - bar_h / 2"
+    x1: "bar_x0 + bar_len"
+    y1: "mid + bar_h / 2"
+  }
+}
+shapes {
+  name: "turnstile"
+  union_of { shapes: "stem" shapes: "bar" }
+}
+
+# ∎ — the filled square that ends a proof. Flat geometry, no curve to lose.
+shapes {
+  name: "halmos"
+  rect {
+    x0: "halmos_x0"
+    y0: "mid - qed / 2"
+    x1: "halmos_x0 + qed"
+    y1: "mid + qed / 2"
+  }
+}
+
+shapes {
+  name: "whole"
+  union_of { shapes: "turnstile" shapes: "halmos" }
+}
+
+fit {
+  bounds_of: "whole"
+  pad: "(1 - fit_frac) / 2"
+}
+
+layers {
+  name: "turnstile"
+  shape: "turnstile"
+  # Ink on paper, and paper on ink. The dark form takes the LIGHT palette's `bg`
+  # -- which is paper -- rather than the dark palette's `fg`, which is a softer
+  # grey meant for running text and would read as a smudge at avatar size.
+  fill {
+    light { theme { mode: "light" role: "fg" } }
+    dark { theme { mode: "light" role: "bg" } }
+  }
+}
+
+layers {
+  name: "halmos"
+  shape: "halmos"
+  # The turnstile opens the claim; the halmos closes it, so the halmos carries
+  # the accent. Green marks verification and nothing else.
+  fill {
+    light { theme { mode: "light" role: "accent" } }
+    dark { theme { mode: "dark" role: "accent" } }
+  }
+}
+
+variants {
+  name: "flat"
+  mode: "light"
+  ground {
+    light { theme { mode: "light" role: "bg" } }
+    dark { theme { mode: "light" role: "bg" } }
+  }
+}
+
+variants {
+  name: "inkbg"
+  mode: "dark"
+  ground {
+    light { theme { mode: "dark" role: "bg" } }
+    dark { theme { mode: "dark" role: "bg" } }
+  }
+}
+
+# No ground, which is why the `outs` for this variant legitimately omit bg.svg.
+variants {
+  name: "transparent"
+  mode: "light"
+}

@@ -1,0 +1,11 @@
+"""The example brands, and the gate that keeps `MarkProgram` honest.
+
+`program_parity_test.py` is shared rather than copied: each brand instantiates it
+with its own `env`, the way `//service:conformance_test` is parameterised over
+the brands it checks. One file means a new assertion lands for every brand at
+once, which is the opposite of how a per-brand copy behaves.
+"""
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["program_parity_test.py"])

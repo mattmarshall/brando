@@ -1,100 +1,5 @@
 {
   "messages": {
-    "brando.v1.Asset": {
-      "kind": {
-        "kind": "enum",
-        "repeated": false
-      },
-      "media_type": {
-        "kind": "string",
-        "repeated": false
-      },
-      "mode": {
-        "kind": "string",
-        "repeated": false
-      },
-      "name": {
-        "kind": "string",
-        "repeated": false
-      },
-      "path": {
-        "kind": "string",
-        "repeated": false
-      },
-      "sha256": {
-        "kind": "string",
-        "repeated": false
-      },
-      "size_bytes": {
-        "kind": "int64",
-        "repeated": false
-      },
-      "size_px": {
-        "kind": "number",
-        "repeated": false
-      },
-      "variant": {
-        "kind": "string",
-        "repeated": false
-      }
-    },
-    "brando.v1.BrandPackage": {
-      "assets": {
-        "kind": "message",
-        "repeated": true,
-        "type": "brando.v1.Asset"
-      },
-      "provenance": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.Provenance"
-      },
-      "spec": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.BrandSpec"
-      }
-    },
-    "brando.v1.BrandSpec": {
-      "catalog": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.Catalog"
-      },
-      "copy": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.Copy"
-      },
-      "display_name": {
-        "kind": "string",
-        "repeated": false
-      },
-      "fonts": {
-        "kind": "message",
-        "repeated": true,
-        "type": "brando.v1.FontSource"
-      },
-      "id": {
-        "kind": "string",
-        "repeated": false
-      },
-      "identity": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.Identity"
-      },
-      "mark": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.MarkSpec"
-      },
-      "theme": {
-        "kind": "message",
-        "repeated": false,
-        "type": "meridian.theme.v1.Theme"
-      }
-    },
     "brando.v1.Buffer": {
       "cap_style": {
         "kind": "string",
@@ -119,16 +24,6 @@
       "shape": {
         "kind": "string",
         "repeated": false
-      }
-    },
-    "brando.v1.Catalog": {
-      "custom": {
-        "kind": "string",
-        "repeated": true
-      },
-      "kinds": {
-        "kind": "enum",
-        "repeated": true
       }
     },
     "brando.v1.Circle": {
@@ -164,73 +59,6 @@
       "shapes": {
         "kind": "string",
         "repeated": true
-      }
-    },
-    "brando.v1.ContrastFinding": {
-      "background_role": {
-        "kind": "string",
-        "repeated": false
-      },
-      "foreground_role": {
-        "kind": "string",
-        "repeated": false
-      },
-      "minimum": {
-        "kind": "number",
-        "repeated": false
-      },
-      "mode": {
-        "kind": "string",
-        "repeated": false
-      },
-      "ratio": {
-        "kind": "number",
-        "repeated": false
-      },
-      "severity": {
-        "kind": "enum",
-        "repeated": false
-      }
-    },
-    "brando.v1.Copy": {
-      "closing": {
-        "kind": "string",
-        "repeated": false
-      },
-      "color_section_title": {
-        "kind": "string",
-        "repeated": false
-      },
-      "deck_subtitle": {
-        "kind": "string",
-        "repeated": false
-      },
-      "deck_title": {
-        "kind": "string",
-        "repeated": false
-      },
-      "extra": {
-        "kind": "message",
-        "repeated": true,
-        "type": "brando.v1.Copy.ExtraEntry"
-      },
-      "mark_section_title": {
-        "kind": "string",
-        "repeated": false
-      },
-      "type_section_title": {
-        "kind": "string",
-        "repeated": false
-      }
-    },
-    "brando.v1.Copy.ExtraEntry": {
-      "key": {
-        "kind": "string",
-        "repeated": false
-      },
-      "value": {
-        "kind": "string",
-        "repeated": false
       }
     },
     "brando.v1.Difference": {
@@ -283,44 +111,6 @@
         "repeated": false
       }
     },
-    "brando.v1.FontSource": {
-      "display": {
-        "kind": "string",
-        "repeated": false
-      },
-      "family": {
-        "kind": "string",
-        "repeated": false
-      },
-      "license": {
-        "kind": "string",
-        "repeated": false
-      },
-      "sha256": {
-        "kind": "string",
-        "repeated": false
-      },
-      "src_uri": {
-        "kind": "string",
-        "repeated": false
-      },
-      "style": {
-        "kind": "string",
-        "repeated": false
-      },
-      "unicode_range": {
-        "kind": "string",
-        "repeated": false
-      },
-      "upstream_uri": {
-        "kind": "string",
-        "repeated": false
-      },
-      "weight": {
-        "kind": "string",
-        "repeated": false
-      }
-    },
     "brando.v1.Gradient": {
       "angle_deg": {
         "kind": "string",
@@ -341,36 +131,6 @@
       "offset": {
         "kind": "string",
         "repeated": false
-      }
-    },
-    "brando.v1.Identity": {
-      "brandbook_uri": {
-        "kind": "string",
-        "repeated": false
-      },
-      "legal_name": {
-        "kind": "string",
-        "repeated": false
-      },
-      "positioning": {
-        "kind": "string",
-        "repeated": false
-      },
-      "story": {
-        "kind": "string",
-        "repeated": false
-      },
-      "tagline": {
-        "kind": "string",
-        "repeated": false
-      },
-      "usage_rules": {
-        "kind": "string",
-        "repeated": true
-      },
-      "voice": {
-        "kind": "string",
-        "repeated": true
       }
     },
     "brando.v1.LayerDef": {
@@ -438,41 +198,6 @@
         "kind": "message",
         "repeated": true,
         "type": "brando.v1.VariantDef"
-      }
-    },
-    "brando.v1.MarkSpec": {
-      "generator": {
-        "kind": "string",
-        "repeated": false
-      },
-      "layers": {
-        "kind": "string",
-        "repeated": true
-      },
-      "packed": {
-        "kind": "string",
-        "repeated": true
-      },
-      "pad": {
-        "kind": "number",
-        "repeated": false
-      },
-      "program": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.MarkProgram"
-      },
-      "sizes": {
-        "kind": "number",
-        "repeated": true
-      },
-      "supersample": {
-        "kind": "number",
-        "repeated": false
-      },
-      "variants": {
-        "kind": "string",
-        "repeated": true
       }
     },
     "brando.v1.ModalColor": {
@@ -561,34 +286,6 @@
         "type": "brando.v1.Point"
       },
       "taper": {
-        "kind": "string",
-        "repeated": false
-      }
-    },
-    "brando.v1.Provenance": {
-      "brando_version": {
-        "kind": "string",
-        "repeated": false
-      },
-      "build_time": {
-        "kind": "message",
-        "repeated": false,
-        "type": "google.protobuf.Timestamp"
-      },
-      "contrast": {
-        "kind": "message",
-        "repeated": true,
-        "type": "brando.v1.ContrastFinding"
-      },
-      "source_commit": {
-        "kind": "string",
-        "repeated": false
-      },
-      "source_repo": {
-        "kind": "string",
-        "repeated": false
-      },
-      "spec_digest": {
         "kind": "string",
         "repeated": false
       }
@@ -813,176 +510,7 @@
         "repeated": true,
         "type": "brando.v1.Param"
       }
-    },
-    "google.protobuf.Timestamp": {
-      "nanos": {
-        "kind": "number",
-        "repeated": false
-      },
-      "seconds": {
-        "kind": "int64",
-        "repeated": false
-      }
-    },
-    "meridian.theme.v1.FontSource": {
-      "display": {
-        "kind": "string",
-        "repeated": false
-      },
-      "family": {
-        "kind": "string",
-        "repeated": false
-      },
-      "src_uri": {
-        "kind": "string",
-        "repeated": false
-      },
-      "style": {
-        "kind": "string",
-        "repeated": false
-      },
-      "unicode_range": {
-        "kind": "string",
-        "repeated": false
-      },
-      "weight": {
-        "kind": "string",
-        "repeated": false
-      }
-    },
-    "meridian.theme.v1.Metrics": {
-      "radius_px": {
-        "kind": "number",
-        "repeated": false
-      },
-      "unit_px": {
-        "kind": "number",
-        "repeated": false
-      }
-    },
-    "meridian.theme.v1.Palette": {
-      "accent": {
-        "kind": "string",
-        "repeated": false
-      },
-      "accent_strong": {
-        "kind": "string",
-        "repeated": false
-      },
-      "bg": {
-        "kind": "string",
-        "repeated": false
-      },
-      "border": {
-        "kind": "string",
-        "repeated": false
-      },
-      "code_bg": {
-        "kind": "string",
-        "repeated": false
-      },
-      "code_fg": {
-        "kind": "string",
-        "repeated": false
-      },
-      "danger": {
-        "kind": "string",
-        "repeated": false
-      },
-      "fg": {
-        "kind": "string",
-        "repeated": false
-      },
-      "info": {
-        "kind": "string",
-        "repeated": false
-      },
-      "muted": {
-        "kind": "string",
-        "repeated": false
-      },
-      "on_accent": {
-        "kind": "string",
-        "repeated": false
-      },
-      "success": {
-        "kind": "string",
-        "repeated": false
-      },
-      "surface": {
-        "kind": "string",
-        "repeated": false
-      },
-      "warning": {
-        "kind": "string",
-        "repeated": false
-      }
-    },
-    "meridian.theme.v1.Theme": {
-      "dark": {
-        "kind": "message",
-        "repeated": false,
-        "type": "meridian.theme.v1.Palette"
-      },
-      "display_name": {
-        "kind": "string",
-        "repeated": false
-      },
-      "id": {
-        "kind": "string",
-        "repeated": false
-      },
-      "light": {
-        "kind": "message",
-        "repeated": false,
-        "type": "meridian.theme.v1.Palette"
-      },
-      "metrics": {
-        "kind": "message",
-        "repeated": false,
-        "type": "meridian.theme.v1.Metrics"
-      },
-      "typography": {
-        "kind": "message",
-        "repeated": false,
-        "type": "meridian.theme.v1.Typography"
-      }
-    },
-    "meridian.theme.v1.Typography": {
-      "base_size_px": {
-        "kind": "number",
-        "repeated": false
-      },
-      "body_weight": {
-        "kind": "number",
-        "repeated": false
-      },
-      "display": {
-        "kind": "string",
-        "repeated": false
-      },
-      "fonts": {
-        "kind": "message",
-        "repeated": true,
-        "type": "meridian.theme.v1.FontSource"
-      },
-      "heading_tracking": {
-        "kind": "string",
-        "repeated": false
-      },
-      "heading_weight": {
-        "kind": "number",
-        "repeated": false
-      },
-      "mono": {
-        "kind": "string",
-        "repeated": false
-      },
-      "sans": {
-        "kind": "string",
-        "repeated": false
-      }
     }
   },
-  "root": "brando.v1.BrandPackage"
+  "root": "brando.v1.MarkProgram"
 }

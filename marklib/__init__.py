@@ -40,8 +40,8 @@ _LAZY = {
 }
 
 _SUBMODULES = (
-    "diagrams", "emit", "fit", "iconcomposer", "marklib",
-    "palette", "raster", "tokens", "wordmark",
+    "diagrams", "emit", "expr", "fit", "iconcomposer", "marklib",
+    "palette", "program", "raster", "tokens", "wordmark",
 )
 
 __all__ = ["fit", "spec_at"] + sorted(_LAZY)
