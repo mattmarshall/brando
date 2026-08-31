@@ -18,21 +18,30 @@ scoping problem, it is remote code execution.
 
 So `RenderService` renders exactly what is DERIVABLE FROM THE SPEC:
 
-    theme.json / theme.binpb   the Theme, in both wire forms
+    theme.json                 the Theme, as proto3-JSON
     theme.css                  custom properties, via marklib.tokens
-    the contrast report        via marklib.palette
-    the templated surfaces     mdBook theme, LaTeX class
+    contrast.json              the contrast report, via marklib.palette
 
-and marks arrive as INPUTS, produced by whoever owns the geometry. That is not a
-lesser service: the derivable set is what changes when a palette changes, which
-is what a hosted renderer is for. A mark changes when someone edits geometry, and
-that already has a home — a build.
+That list is shorter than an earlier version of this docstring claimed. It named
+`theme.binpb` and the templated mdBook and LaTeX surfaces as well, and
+`DERIVABLE_KINDS` never included any of them — a comment describing a service
+that did not exist, which is worse than no comment at all.
+
+AND, SINCE 0.6.0, THE MARK — when the spec carries one. The reasoning above is
+unchanged and the refusal still stands for a `MarkSpec` that names a
+`generator`: running caller-supplied code is not a scoping problem. What changed
+is that a `MarkSpec` can now carry a `MarkProgram` instead, which is a closed
+vocabulary of primitives, boolean operations and arithmetic over named
+parameters — no assignment, no recursion, no unbounded loop. Executing one is
+evaluation and it terminates, so the spec finally CONTAINS the drawing rather
+than naming it. `unrenderable()` is therefore a question about a spec rather
+than a constant lookup.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from marklib import palette as _palette
 from marklib import tokens as _tokens
@@ -44,6 +53,15 @@ DERIVABLE_KINDS = (
     "ARTIFACT_KIND_THEME_JSON",
     "ARTIFACT_KIND_THEME_CSS",
     "ARTIFACT_KIND_CONTRAST_MATRIX",
+)
+
+# Kinds this core can produce ONLY when the spec carries a `MarkProgram`. They
+# are listed separately rather than folded into `DERIVABLE_KINDS` because
+# whether they are renderable is a property of the SPEC, not of the service: a
+# `MarkSpec` that names a generator is still a mark this service cannot draw,
+# and saying so remains the right answer.
+PROGRAM_KINDS = (
+    "ARTIFACT_KIND_MARK_SVG",
 )
 
 
@@ -112,6 +130,42 @@ def render(theme: dict, *, kinds=None) -> Dict[str, bytes]:
         ).encode("utf-8")
 
     return out
+
+
+def has_program(spec: dict) -> bool:
+    """Whether this spec carries a mark this service may execute.
+
+    The distinction the whole refusal turns on. A `MarkSpec.generator` is a Bazel
+    label naming code in a repo; a `MarkSpec.program` is a closed vocabulary of
+    primitives and arithmetic with no assignment, no recursion and no unbounded
+    loop. The first is remote code execution and stays refused. The second
+    terminates.
+    """
+    return bool((spec.get("mark") or {}).get("program"))
+
+
+def render_mark(spec: dict, *, variants=None, canvas: Optional[int] = None,
+                prefix: str = "mark") -> Dict[str, bytes]:
+    """Execute the spec's MarkProgram into `filename -> bytes`.
+
+    IMPORTED LAZILY, and that is not an optimisation. `marklib.program` needs
+    shapely; `theme_css` and `contrast` need nothing but the standard library,
+    and they are the paths a caller checking a palette takes. Keeping the
+    geometry stack off that path is the same property `marklib/__init__.py`
+    defends with PEP 562, for the same reason — it was silently false once, and
+    the console found it rather than the tests.
+    """
+    from marklib import program as _program
+
+    mark = spec.get("mark") or {}
+    node = mark.get("program")
+    if not node:
+        raise ValueError(
+            "this spec's mark names a generator rather than carrying a program, "
+            "so there is nothing here to execute")
+    return _program.emit_bytes(
+        node, prefix, variants or _program.variant_names(node),
+        theme=spec.get("theme"), canvas=canvas)
 
 
 def package(spec_json: dict, artifacts: Dict[str, bytes], *,
@@ -188,11 +242,30 @@ _MEDIA = {
 }
 
 
-def unrenderable(kinds) -> List[str]:
-    """Which requested kinds this core cannot produce.
+def renderable_kinds(spec: Optional[dict] = None) -> tuple:
+    """Everything this core can produce for `spec`.
+
+    Spec-dependent since 0.6.0. It used to be a constant, because a mark was
+    never renderable; now it is renderable exactly when the spec carries a
+    program, and a constant could not say that.
+    """
+    if spec is not None and has_program(spec):
+        return DERIVABLE_KINDS + PROGRAM_KINDS
+    return DERIVABLE_KINDS
+
+
+def unrenderable(kinds, spec: Optional[dict] = None) -> List[str]:
+    """Which requested kinds this core cannot produce for this spec.
 
     A caller asking for a mark should be TOLD, not quietly handed a package
     missing it — that is the same silent-shortfall the Catalog gate exists to
     prevent, arriving through a different door.
+
+    `spec` is optional so the question "what can you make from a bare Theme"
+    still has an answer, and defaults to the strictest one: with no spec in hand
+    there is no program, so a mark is unrenderable. Refusing by default is the
+    behaviour this function shipped with, and it is the safe direction to be
+    wrong in.
     """
-    return [k for k in kinds if k not in DERIVABLE_KINDS]
+    allowed = renderable_kinds(spec)
+    return [k for k in kinds if k not in allowed]

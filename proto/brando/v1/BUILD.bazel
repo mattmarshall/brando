@@ -41,7 +41,15 @@ aip_proto_library(
     # rendering runs the generators (CSG, rasterization, LaTeX) and a Bedrock
     # call is a network round trip. Both are operations from the start rather
     # than blocking RPCs that later need rewriting.
-    deps = AIP_WKT_DEPS + AIP_LRO_DEPS + [":brand_proto"],
+    #
+    # theme_proto is a DIRECT dep even though brand_proto already pulls it:
+    # `CheckContrast` and `RenderTheme` take a Theme that is not part of a stored
+    # brand, so this file names the type itself, and Bazel's strict proto deps
+    # want the import declared where it is made rather than inherited.
+    deps = AIP_WKT_DEPS + AIP_LRO_DEPS + [
+        ":brand_proto",
+        "@meridian_schemas//proto:theme_proto",
+    ],
 )
 
 aip_proto_lint(

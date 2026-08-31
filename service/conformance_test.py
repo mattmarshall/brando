@@ -94,19 +94,40 @@ class Conformance(unittest.TestCase):
         out = render_core.render(theme, kinds=["ARTIFACT_KIND_THEME_CSS"])
         self.assertEqual(["theme.css"], list(out))
 
-    def test_a_mark_is_reported_as_unrenderable_rather_than_dropped(self):
-        """A service handed an arbitrary spec cannot draw a mark: the spec names
-        a generator, it does not contain the drawing, and running a
-        caller-supplied generator is remote code execution rather than a feature.
+    def test_a_generator_mark_is_reported_as_unrenderable_rather_than_dropped(self):
+        """A spec that NAMES a generator does not contain its drawing, and
+        running a caller-supplied generator is remote code execution rather than
+        a feature.
 
         Being TOLD is the whole point. Silently returning a package without the
         mark is the same shortfall the Catalog gate exists to prevent, arriving
         through a different door.
+
+        Three cases, because `unrenderable` stopped being a constant lookup in
+        0.6.0 and started being a question about a spec. The default -- no spec
+        in hand -- must stay the STRICT answer: refusing by default is the safe
+        direction to be wrong in, and it is the behaviour this function shipped
+        with.
         """
-        missing = render_core.unrenderable(
-            ["ARTIFACT_KIND_THEME_CSS", "ARTIFACT_KIND_MARK_SVG"]
-        )
-        self.assertEqual(["ARTIFACT_KIND_MARK_SVG"], missing)
+        kinds = ["ARTIFACT_KIND_THEME_CSS", "ARTIFACT_KIND_MARK_SVG"]
+        self.assertEqual(["ARTIFACT_KIND_MARK_SVG"],
+                         render_core.unrenderable(kinds))
+        self.assertEqual(
+            ["ARTIFACT_KIND_MARK_SVG"],
+            render_core.unrenderable(kinds, {"mark": {"generator": "//gen:gen_mark"}}))
+
+    def test_a_program_mark_is_renderable(self):
+        """The other half of the same invariant, and the reason the first half
+        had to be narrowed rather than deleted."""
+        spec = {"mark": {"program": {"variants": [{"name": "flat"}]}}}
+        self.assertEqual([], render_core.unrenderable(["ARTIFACT_KIND_MARK_SVG"], spec))
+        self.assertTrue(render_core.has_program(spec))
+        self.assertFalse(render_core.has_program({"mark": {"generator": "//x:y"}}))
+
+    def test_rendering_a_spec_with_no_program_says_so_rather_than_crashing(self):
+        with self.assertRaises(ValueError) as caught:
+            render_core.render_mark({"mark": {"generator": "//gen:gen_mark"}})
+        self.assertIn("names a generator", str(caught.exception))
 
 
 if __name__ == "__main__":

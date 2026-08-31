@@ -68,6 +68,13 @@ py_library(
     imports = [".."],
     deps = [
         "//marklib:palette",
+        # The MarkProgram interpreter, so RenderService can execute a mark that
+        # lives IN a spec rather than being named by it. It is the one dep here
+        # that is not stdlib -- it pulls shapely and svgwrite -- which is why
+        # `render_mark` imports it INSIDE the function: a caller checking a
+        # palette or projecting a stylesheet never loads the geometry stack, the
+        # same property `marklib/__init__.py` defends with PEP 562.
+        "//marklib:program",
         "//marklib:tokens",
         # Imported for `_blob_path`. A second definition of where a blob lives
         # inside an archive is how the manifest and the archive disagree.

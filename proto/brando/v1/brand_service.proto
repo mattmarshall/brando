@@ -24,6 +24,10 @@ option java_outer_classname = "BrandServiceProto";
 option java_package = "dev.brando.v1";
 
 import "brando/v1/brand.proto";
+// RenderTheme and CheckContrast take a Theme that is not yet part of a stored
+// brand, so this file names the type directly rather than reaching it through
+// BrandSpec.
+import "proto/theme.proto";
 import "google/api/field_behavior.proto";
 import "google/api/client.proto";
 import "google/api/resource.proto";
@@ -342,6 +346,122 @@ service RenderService {
       metadata_type: "RenderBrandMetadata"
     };
   }
+
+  // Contrast findings for a Theme, on their own.
+  //
+  // ARITHMETIC, ON THE DETERMINISTIC SERVICE, DELIBERATELY. Contrast already
+  // travels back with a proposal and with a critique, but only ever attached to
+  // something a model produced. An author iterating on a palette needs to ask
+  // the question by itself, and the answer must not come from the tier that has
+  // opinions: a model can produce a plausible palette that fails WCAG, and
+  // asking it to check its own arithmetic is the wrong tool. So this is here and
+  // not on StudioService, and it is unary because it is microseconds of work.
+  rpc CheckContrast(CheckContrastRequest) returns (CheckContrastResponse) {
+    option (google.api.method_signature) = "theme";
+  }
+
+  // The stylesheet and the contrast report for a Theme that is not yet a brand.
+  //
+  // `RenderBrand` needs a stored resource; this needs only the Theme, which is
+  // what an author has in hand before there is anything to store.
+  rpc RenderTheme(RenderThemeRequest) returns (RenderThemeResponse) {
+    option (google.api.method_signature) = "theme";
+  }
+
+  // Execute a MarkProgram: the RPC this service could not previously offer.
+  //
+  // WHAT CHANGED, AND WHAT DID NOT. This service used to refuse marks outright,
+  // because a spec NAMED a generator and running a caller-supplied generator is
+  // remote code execution. That reasoning is unchanged and the refusal stands
+  // for a `MarkSpec` that carries only `generator`. What changed is that a
+  // `MarkProgram` is not a generator: it is a closed vocabulary of primitives,
+  // boolean operations and arithmetic over named parameters, with no assignment,
+  // no recursion and no unbounded loop. Running one is evaluation, and it
+  // terminates.
+  //
+  // Unary rather than an operation: this is CSG and SVG serialization, which is
+  // milliseconds. Only `RenderBrand` runs the full catalog -- rasterization at
+  // every icon size and a LaTeX pass -- and only it needs to be an LRO.
+  rpc RenderMark(RenderMarkRequest) returns (RenderMarkResponse);
+
+  // Which of a brand's declared artifact kinds are absent from a set of assets.
+  //
+  // The same check `//tools:catalog_check` gates a `.brando` with, reachable
+  // before a package is built. A Catalog is a FLOOR: shipping more than declared
+  // stays legal, and only the missing are reported.
+  rpc CheckCatalog(CheckCatalogRequest) returns (CheckCatalogResponse);
+}
+
+message CheckContrastRequest {
+  meridian.theme.v1.Theme theme = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CheckContrastResponse {
+  repeated ContrastFinding contrast = 1;
+}
+
+message RenderThemeRequest {
+  meridian.theme.v1.Theme theme = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // CSS custom-property prefix; `brand` when empty.
+  string prefix = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // CSS selector the light palette is defined on; `:root` when empty.
+  string selector = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message RenderThemeResponse {
+  string css = 1;
+
+  // Always computed, never asked for, and returned whether or not it is clean --
+  // a caller that has to request the check separately is a caller who will
+  // forget to.
+  repeated ContrastFinding contrast = 2;
+}
+
+message RenderMarkRequest {
+  MarkProgram program = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Resolves the program's theme-role colour references. Required unless every
+  // colour in the program is a literal: a role that cannot be looked up is an
+  // error rather than a guessed or empty fill.
+  meridian.theme.v1.Theme theme = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Which variants to render. Empty means every variant the program declares.
+  repeated string variants = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Canvas edge in px, overriding the program's own.
+  int32 canvas = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message RenderMarkResponse {
+  repeated RenderedFile files = 1;
+}
+
+// One rendered artifact, inline.
+//
+// BYTES ON THE WIRE HERE, AND A URL FOR EVERYTHING ELSE. `AssetService` hands
+// back a URL precisely so the service is not on the path of every image a
+// browser fetches. A layered SVG set is a few kilobytes of text produced in
+// milliseconds and usually thrown away, so making a caller store it first, then
+// resolve it, would be ceremony around a value that fits in the response.
+message RenderedFile {
+  // The filename a build would have written, e.g. `mark_flat.turnstile.svg`.
+  string name = 1;
+  string media_type = 2;
+  bytes content = 3;
+}
+
+message CheckCatalogRequest {
+  BrandSpec spec = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The kinds actually present in the assets under consideration.
+  repeated ArtifactKind present = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message CheckCatalogResponse {
+  // Declared by the Catalog and absent from `present`. Empty means conformant.
+  repeated ArtifactKind missing = 1;
 }
 
 message RenderBrandRequest {
@@ -422,6 +542,37 @@ service StudioService {
       metadata_type: "StudioMetadata"
     };
   }
+
+  // The same review, on a spec that is not stored yet.
+  //
+  // WHY BOTH. `CritiqueBrand` takes a resource name, so a caller can only
+  // critique a brand it has already saved. That is the wrong shape for the case
+  // the critique is most useful in: a draft, being argued with, before anyone
+  // has decided it is worth a revision. Requiring a save first would mean every
+  // rejected draft became a permanent point in the brand's history, which is
+  // the opposite of what a history is for.
+  //
+  // Unary, unlike its sibling: with no model configured this is a dict walk over
+  // what the spec is missing, and even with one it is a single call.
+  rpc CritiqueSpec(CritiqueSpecRequest) returns (CritiqueSpecResponse) {
+    option (google.api.method_signature) = "spec";
+  }
+}
+
+message CritiqueSpecRequest {
+  BrandSpec spec = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message CritiqueSpecResponse {
+  repeated Critique critiques = 1;
+
+  // Kept SEPARATE from the critiques, as in `CritiqueBrandResponse`: contrast is
+  // arithmetic and is not negotiable, a model's opinion is, and a reader has to
+  // be able to tell which is which.
+  repeated ContrastFinding contrast = 2;
+
+  // Which model answered, or empty when the deterministic fallback did.
+  string model_id = 3;
 }
 
 message ProposeSpecRequest {

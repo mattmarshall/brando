@@ -588,6 +588,30 @@ def emit(program: dict, out_dir: str, prefix: str, variants: Sequence[str], *,
     return written
 
 
+def emit_bytes(program: dict, prefix: str, variants: Sequence[str], *,
+               theme: Optional[dict] = None,
+               canvas: Optional[int] = None) -> Dict[str, bytes]:
+    """The same emission, returned as `filename -> bytes` instead of written.
+
+    A SERVICE NEEDS BYTES AND A BUILD NEEDS FILES, and this is the whole of the
+    difference. It would be easy to give the service its own serializer and
+    faster too; it would also mean two emitters, and the next divergence between
+    them would be a mark that renders one way from Bazel and another from the
+    API — invisible in both, because each looks correct on its own. So this
+    writes through `emit()` into a temporary directory and reads the result
+    back. A layered mark is a handful of kilobytes of text.
+    """
+    import tempfile
+
+    out: Dict[str, bytes] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        emit(program, tmp, prefix, variants, theme=theme, canvas=canvas)
+        for name in sorted(os.listdir(tmp)):
+            with open(os.path.join(tmp, name), "rb") as handle:
+                out[name] = handle.read()
+    return out
+
+
 def load(path: str) -> dict:
     with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
