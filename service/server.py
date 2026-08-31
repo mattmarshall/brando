@@ -18,6 +18,8 @@ RUN IT: bazel run //service:server -- --port 50051
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
 import threading
 import time
@@ -120,6 +122,37 @@ def _spec_etag(spec) -> str:
     return spec_digest(json_format.MessageToDict(spec))[:16]
 
 
+def _fill_critiques(target, critiques: List[dict]) -> None:
+    for c in critiques:
+        target.add(
+            subject=c.get("subject", ""),
+            finding=c.get("finding", ""),
+            suggestion=c.get("suggestion", ""),
+            severity=pb.Critique.Severity.Value(
+                c.get("severity", "SEVERITY_UNSPECIFIED")),
+        )
+
+
+def _fill_contrast(target, findings: List[dict]) -> None:
+    """Copy `render_core.contrast` findings into a repeated ContrastFinding.
+
+    ONE PROJECTION, four call sites. Contrast now travels back from a proposal,
+    a critique, a rendered theme and a bare check, and a second copy of this
+    loop is a second place to quietly drop `severity` — which is the field that
+    decides whether a build fails.
+    """
+    for finding in findings:
+        target.add(
+            mode=finding["mode"],
+            foreground_role=finding["foreground_role"],
+            background_role=finding["background_role"],
+            ratio=finding["ratio"],
+            minimum=finding["minimum"],
+            severity=data.ContrastFinding.Severity.Value(
+                "SEVERITY_ERROR" if finding["severity"] == "error" else "SEVERITY_WARN"),
+        )
+
+
 def _brand_id(name: str) -> str:
     """`brands/{brand}` -> `{brand}`, rejecting anything else."""
     parts = name.split("/")
@@ -131,7 +164,16 @@ def _brand_id(name: str) -> str:
 def _log_unhandled(fn):
     """grpc turns any unhandled servicer exception into a bare UNKNOWN with no
     detail, which is the least debuggable outcome available. Log it, then let it
-    become UNKNOWN -- the point is that the traceback exists somewhere."""
+    become UNKNOWN -- the point is that the traceback exists somewhere.
+
+    A DELIBERATE `context.abort()` IS NOT AN UNHANDLED EXCEPTION, and it took
+    until 0.6.0 for that to matter. `abort()` unwinds by raising a bare
+    `Exception` as a sentinel -- not an `RpcError`, so the original guard here
+    never caught it -- and every refusal therefore printed a full traceback that
+    looked exactly like a crash. With one abort in the service that was a wart;
+    with nine it is a log nobody reads, which is worse than no log. `code()` is
+    set on the context by `abort()` and by nothing else, so it distinguishes the
+    two without reaching into grpc's internals."""
     import functools
     import traceback
 
@@ -140,7 +182,13 @@ def _log_unhandled(fn):
         try:
             return fn(self, request, context)
         except Exception:
-            if not isinstance(sys.exc_info()[1], grpc.RpcError):
+            deliberate = isinstance(sys.exc_info()[1], grpc.RpcError)
+            if not deliberate:
+                try:
+                    deliberate = context.code() is not None
+                except Exception:
+                    deliberate = False
+            if not deliberate:
                 traceback.print_exc(file=sys.stderr)
             raise
 
@@ -276,16 +324,51 @@ class StudioServicer(pb_grpc.StudioServiceServicer):
         out = self._studio.critique(json_format.MessageToDict(brand.spec))
 
         response = pb.CritiqueBrandResponse()
-        for c in out["critiques"]:
-            response.critiques.add(
-                subject=c.get("subject", ""),
-                finding=c.get("finding", ""),
-                suggestion=c.get("suggestion", ""),
-                severity=pb.Critique.Severity.Value(
-                    c.get("severity", "SEVERITY_UNSPECIFIED")),
-            )
+        _fill_critiques(response.critiques, out["critiques"])
+        # The contrast findings used to be dropped here. `Studio.critique`
+        # computes them, `CritiqueBrandResponse.contrast` has always had a field
+        # for them, and nothing carried them across -- so the half of the answer
+        # that is arithmetic rather than opinion never reached a caller, which is
+        # exactly the distinction the two fields exist to draw.
+        _fill_contrast(response.contrast, out["contrast"])
         return self._done(
             "operations/critique-%s" % brand.name, response,
+            pb.StudioMetadata(model_id=out["model_id"], cached=out["cached"]))
+
+    @_log_unhandled
+    def CritiqueSpec(self, request, context):
+        """The same review, on a draft nobody has saved.
+
+        Unary, unlike its sibling: a critique of an unsaved spec is a dict walk
+        with no model configured and one call with one, and requiring a save
+        first would make every rejected draft a permanent revision.
+        """
+        out = self._studio.critique(json_format.MessageToDict(
+            request.spec, preserving_proto_field_name=True))
+        response = pb.CritiqueSpecResponse(model_id=out["model_id"])
+        _fill_critiques(response.critiques, out["critiques"])
+        _fill_contrast(response.contrast, out["contrast"])
+        return response
+
+    def DraftCopy(self, request, context):
+        """Write the prose a brand's Identity is missing.
+
+        DECLARED IN THE PROTO SINCE 0.3.0 AND ABSENT FROM THIS CLASS. Both
+        `Engine.draft_copy` and `Studio.draft_copy` existed and were reachable
+        from nothing, so the method returned UNIMPLEMENTED while the service
+        advertised it. Either serve it or delete it; it is three lines to serve.
+        """
+        brand = self._store.get(_brand_id(request.name))
+        if brand is None:
+            context.abort(grpc.StatusCode.NOT_FOUND, "no such brand")
+        out = self._studio.draft_copy(
+            json_format.MessageToDict(brand.spec, preserving_proto_field_name=True),
+            list(request.fields))
+        response = pb.DraftCopyResponse()
+        json_format.ParseDict(out["identity"], response.identity,
+                              ignore_unknown_fields=True)
+        return self._done(
+            "operations/draft-copy-%s" % brand.name, response,
             pb.StudioMetadata(model_id=out["model_id"], cached=out["cached"]))
 
 
@@ -299,21 +382,40 @@ class RenderServicer(pb_grpc.RenderServiceServicer):
         if brand is None:
             context.abort(grpc.StatusCode.NOT_FOUND, "no such brand")
 
-        requested = [data.ArtifactKind.Name(k) for k in request.kinds] or None
-        missing = render_core.unrenderable(requested or [])
+        spec_json = json_format.MessageToDict(
+            brand.spec, preserving_proto_field_name=True)
+
+        # An empty `kinds` means the brand's declared Catalog, which is what the
+        # proto has always said and what this method used not to do -- it fell
+        # back to DERIVABLE_KINDS and never read `spec.catalog` at all. So a
+        # brand declaring a Catalog got whatever the service happened to make,
+        # and the declaration it was measured against everywhere else was
+        # ignored here.
+        requested = [data.ArtifactKind.Name(k) for k in request.kinds]
+        if not requested:
+            requested = list((spec_json.get("catalog") or {}).get("kinds", []))
+        if not requested:
+            requested = list(render_core.renderable_kinds(spec_json))
+
+        missing = render_core.unrenderable(requested, spec_json)
         if missing:
-            # Told, not silently short. A caller asking for a mark gets an error
-            # naming what this service cannot draw, rather than a package quietly
-            # missing it.
+            # Told, not silently short. A caller asking for something this
+            # service cannot draw gets an error naming it, rather than a package
+            # quietly missing it.
             context.abort(
                 grpc.StatusCode.INVALID_ARGUMENT,
-                "this service renders only spec-derivable artifacts; it cannot "
-                "produce %s (a mark is brand-specific geometry that lives in a "
-                "repo, not in the spec)" % ", ".join(missing))
+                "this brand cannot produce %s here. %s" % (
+                    ", ".join(missing),
+                    "Its mark names a generator rather than carrying a "
+                    "MarkProgram, and running a caller-supplied generator is "
+                    "remote code execution, not a feature."
+                    if not render_core.has_program(spec_json)
+                    else "This service renders only spec-derivable artifacts."))
 
-        theme = json_format.MessageToDict(
-            brand.spec.theme, preserving_proto_field_name=True)
+        theme = spec_json.get("theme") or {}
         artifacts = render_core.render(theme, kinds=requested)
+        if any(k in render_core.PROGRAM_KINDS for k in requested):
+            artifacts.update(render_core.render_mark(spec_json))
 
         # The manifest, as a real BrandPackage. The service HAS a proto runtime,
         # unlike the stdlib-only build path that has to shell out to
@@ -346,7 +448,7 @@ class RenderServicer(pb_grpc.RenderServiceServicer):
             # brand name. Found by feeding a service-rendered package to
             # rules_brand; every structure test passed, because they checked
             # paths rather than field naming.
-            json_format.MessageToDict(brand.spec, preserving_proto_field_name=True),
+            spec_json,
             artifacts,
             brando_version="service",
             manifest_binpb=manifest.SerializeToString(),
@@ -365,6 +467,164 @@ class RenderServicer(pb_grpc.RenderServiceServicer):
             name="operations/render-%s" % brand.name, done=True, response=packed)
 
 
+    # ── the deterministic surface ────────────────────────────────────────────
+    # Unary, all four. `RenderBrand` is an LRO because it runs rasterization at
+    # every icon size and a LaTeX pass; these are microseconds to milliseconds,
+    # and wrapping them in an Operation would be ceremony a caller has to unwrap
+    # for nothing.
+
+    @_log_unhandled
+    def CheckContrast(self, request, context):
+        theme = json_format.MessageToDict(
+            request.theme, preserving_proto_field_name=True)
+        response = pb.CheckContrastResponse()
+        _fill_contrast(response.contrast, render_core.contrast(theme))
+        return response
+
+    @_log_unhandled
+    def RenderTheme(self, request, context):
+        theme = json_format.MessageToDict(
+            request.theme, preserving_proto_field_name=True)
+        response = pb.RenderThemeResponse(
+            css=render_core.theme_css(
+                theme,
+                prefix=request.prefix or "brand",
+                selector=request.selector or ":root"))
+        # Returned whether or not it is clean. A caller who has to ask separately
+        # is a caller who will forget to.
+        _fill_contrast(response.contrast, render_core.contrast(theme))
+        return response
+
+    @_log_unhandled
+    def RenderMark(self, request, context):
+        # Assembled as a spec fragment because `render_core.render_mark` takes a
+        # spec: one code path executes a program, whether it arrived inside a
+        # stored brand or on its own, so the two cannot drift.
+        spec = {
+            "mark": {"program": json_format.MessageToDict(
+                request.program, preserving_proto_field_name=True)},
+        }
+        if request.HasField("theme"):
+            spec["theme"] = json_format.MessageToDict(
+                request.theme, preserving_proto_field_name=True)
+        try:
+            files = render_core.render_mark(
+                spec, variants=list(request.variants) or None,
+                canvas=request.canvas or None)
+        except ValueError as cause:
+            # A malformed program is the CALLER's error, and saying which part
+            # of it is wrong is the whole value of having a schema. Flattening
+            # it to INTERNAL would leave an author with "something went wrong"
+            # and a program they cannot debug.
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(cause))
+
+        response = pb.RenderMarkResponse()
+        for name, content in sorted(files.items()):
+            response.files.add(
+                name=name, media_type="image/svg+xml", content=content)
+        return response
+
+    @_log_unhandled
+    def CheckCatalog(self, request, context):
+        declared = [data.ArtifactKind.Name(k) for k in request.spec.catalog.kinds]
+        present = {data.ArtifactKind.Name(k) for k in request.present}
+        response = pb.CheckCatalogResponse()
+        # Declared-minus-present only. A Catalog is the FLOOR, not the ceiling:
+        # shipping more than declared is legal, and `//tools:catalog_check` says
+        # so in the same words.
+        for kind in declared:
+            if kind not in present:
+                response.missing.append(data.ArtifactKind.Value(kind))
+        return response
+
+
+class AssetServicer(pb_grpc.AssetServiceServicer):
+    """A built brand's artifacts, as addressable resources.
+
+    DECLARED SINCE 0.3.0 AND NEVER REGISTERED. `serve()` wired four of the five
+    services, so every method here returned UNIMPLEMENTED -- a declaration
+    nothing backed, which is the condition `//tools:catalog_check` exists to
+    catch one directory over.
+
+    The assets come from the stored package's manifest rather than a second
+    index, so what this lists is exactly what the archive contains.
+    """
+
+    def __init__(self, store: Store):
+        self._store = store
+
+    def _manifest(self, brand_id: str, context):
+        stored = self._store.get_package(brand_id)
+        if stored is None:
+            context.abort(
+                grpc.StatusCode.NOT_FOUND,
+                "brand %r has no built package; call RenderBrand first" % brand_id)
+        import io
+        import zipfile
+        with zipfile.ZipFile(io.BytesIO(stored[1])) as archive:
+            return json.loads(archive.read("brand.json"))
+
+    def _assets(self, brand_id: str, context):
+        out = []
+        for asset in self._manifest(brand_id, context).get("assets", []):
+            out.append(pb.BrandAsset(
+                name="brands/%s/assets/%s" % (brand_id, asset["name"]),
+                logical_id=asset["name"],
+                media_type=asset.get("media_type", ""),
+                size_bytes=int(asset.get("size_bytes", 0)),
+                sha256=asset.get("sha256", ""),
+            ))
+        return out
+
+    @_log_unhandled
+    def ListBrandAssets(self, request, context):
+        response = pb.ListBrandAssetsResponse()
+        response.brand_assets.extend(self._assets(_brand_id(request.parent), context))
+        return response
+
+    @_log_unhandled
+    def GetBrandAsset(self, request, context):
+        parts = request.name.split("/assets/", 1)
+        if len(parts) != 2:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT,
+                          "expected brands/{brand}/assets/{asset}")
+        for asset in self._assets(_brand_id(parts[0]), context):
+            if asset.logical_id == parts[1]:
+                return asset
+        context.abort(grpc.StatusCode.NOT_FOUND, "no such asset")
+
+    @_log_unhandled
+    def ResolveBrandAssetUri(self, request, context):
+        """Where the bytes are -- when there is anywhere for them to be.
+
+        The control plane is gRPC and the data plane is an ordinary URL, which
+        is right and is what the proto says. It also means this method cannot
+        invent an answer: storage here is in-memory and nothing is deployed, so
+        with no base URL configured there is no URL. Returning a plausible one
+        would be the worst outcome available -- a caller would fetch it, get
+        nothing, and have no way to tell a broken asset from a service that was
+        never hosting one.
+        """
+        base = os.environ.get("BRANDO_ASSET_BASE_URL", "").strip()
+        if not base:
+            context.abort(
+                grpc.StatusCode.FAILED_PRECONDITION,
+                "this service has no asset base URL configured "
+                "(BRANDO_ASSET_BASE_URL), and its storage is in-memory, so "
+                "there is no URL to give you. The asset's metadata is "
+                "available from GetBrandAsset.")
+        parts = request.name.split("/assets/", 1)
+        if len(parts) != 2:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT,
+                          "expected brands/{brand}/assets/{asset}")
+        for asset in self._assets(_brand_id(parts[0]), context):
+            if asset.logical_id == parts[1]:
+                # Content-addressed, so the URL cannot change meaning.
+                return pb.ResolveBrandAssetUriResponse(
+                    uri="%s/assets/%s" % (base.rstrip("/"), asset.sha256))
+        context.abort(grpc.StatusCode.NOT_FOUND, "no such asset")
+
+
 def serve(port: int, store: Optional[Store] = None) -> grpc.Server:
     store = store or Store()
     studio = Studio()
@@ -373,6 +633,7 @@ def serve(port: int, store: Optional[Store] = None) -> grpc.Server:
     pb_grpc.add_RevisionServiceServicer_to_server(RevisionServicer(store), server)
     pb_grpc.add_StudioServiceServicer_to_server(StudioServicer(store, studio), server)
     pb_grpc.add_RenderServiceServicer_to_server(RenderServicer(store), server)
+    pb_grpc.add_AssetServiceServicer_to_server(AssetServicer(store), server)
     server.add_insecure_port("[::]:%d" % port)
     return server
 

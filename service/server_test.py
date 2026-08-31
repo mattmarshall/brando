@@ -37,6 +37,31 @@ def _spec(brand_id="t", accent="#1B7A55"):
     return spec
 
 
+def _spec_with_program(brand_id="p"):
+    """A spec whose mark is DATA rather than a label naming code.
+
+    Two squares and a union: enough to be a real program and short enough that
+    what is being tested is the refusal boundary rather than the geometry, which
+    `//examples:*_program_parity` covers against real brands.
+    """
+    spec = _spec(brand_id)
+    program = spec.mark.program
+    program.canvas = 64
+    program.params.add(name="w", value="10")
+    shape = program.shapes.add(name="body")
+    shape.rect.x0 = "0"
+    shape.rect.y0 = "0"
+    shape.rect.x1 = "w"
+    shape.rect.y1 = "w"
+    program.fit.bounds_of = "body"
+    program.fit.pad = "0.1"
+    layer = program.layers.add(name="body", shape="body")
+    layer.fill.light.theme.mode = "light"
+    layer.fill.light.theme.role = "fg"
+    program.variants.add(name="flat", mode="light")
+    return spec
+
+
 class ServerTest(unittest.TestCase):
     def setUp(self):
         self.store = srv.Store()
@@ -50,6 +75,7 @@ class ServerTest(unittest.TestCase):
         self.revisions = pb_grpc.RevisionServiceStub(self.channel)
         self.render = pb_grpc.RenderServiceStub(self.channel)
         self.studio = pb_grpc.StudioServiceStub(self.channel)
+        self.assets = pb_grpc.AssetServiceStub(self.channel)
 
     def tearDown(self):
         self.channel.close()
@@ -147,16 +173,151 @@ class ServerTest(unittest.TestCase):
         self.assertIn("theme.css", names)
         self.assertIn("theme.json", names)
 
-    def test_asking_for_a_mark_is_refused_with_a_reason(self):
-        """The service must SAY it cannot draw a mark, not return a package
-        quietly missing one -- the same silent shortfall the Catalog gate exists
-        to prevent, arriving through a different door."""
+    def test_a_generator_mark_is_still_refused_with_a_reason(self):
+        """The refusal that made this service honest, narrowed rather than lifted.
+
+        A `MarkSpec.generator` is a Bazel label naming code in a repo, and
+        running caller-supplied code is remote code execution -- so this must
+        still SAY it cannot draw one, rather than returning a package quietly
+        missing it. What changed in 0.6.0 is only which marks fall under it: the
+        test below is the other half, and the two together are the whole
+        invariant.
+        """
         self._create()
         with self.assertRaises(grpc.RpcError) as ctx:
             self.render.RenderBrand(pb.RenderBrandRequest(
                 name="brands/t", kinds=[data.ARTIFACT_KIND_MARK_SVG]))
         self.assertEqual(grpc.StatusCode.INVALID_ARGUMENT, ctx.exception.code())
-        self.assertIn("brand-specific geometry", ctx.exception.details())
+        self.assertIn("remote code execution", ctx.exception.details())
+
+    def test_a_program_mark_is_rendered(self):
+        """The other half: a spec that CONTAINS its drawing gets one.
+
+        Executing a MarkProgram is evaluation over a closed vocabulary with no
+        assignment, no recursion and no unbounded loop, which is why it does not
+        reopen the argument above.
+        """
+        brand = pb.Brand()
+        brand.spec.CopyFrom(_spec_with_program("p"))
+        self.brands.CreateBrand(pb.CreateBrandRequest(brand_id="p", brand=brand))
+        op = self.render.RenderBrand(pb.RenderBrandRequest(
+            name="brands/p", kinds=[data.ARTIFACT_KIND_MARK_SVG]))
+        response = pb.RenderBrandResponse()
+        op.response.Unpack(response)
+        names = {a.name for a in response.brand_package.assets}
+        self.assertIn("mark_flat.svg", names)
+        self.assertIn("mark_flat.body.svg", names)
+
+    def test_render_mark_executes_a_program_that_was_never_stored(self):
+        """An author iterating on geometry has no brand to name yet."""
+        spec = _spec_with_program()
+        response = self.render.RenderMark(pb.RenderMarkRequest(
+            program=spec.mark.program, theme=spec.theme))
+        names = {f.name for f in response.files}
+        self.assertIn("mark_flat.svg", names)
+        self.assertTrue(all(f.content.startswith(b"<?xml") or
+                            f.content.startswith(b"<svg") for f in response.files))
+
+    def test_a_malformed_program_is_the_callers_error(self):
+        """Naming which part is wrong is the whole value of having a schema.
+
+        Flattening it to INTERNAL would leave an author with 'something went
+        wrong' and a program they cannot debug.
+        """
+        spec = _spec_with_program()
+        spec.mark.program.shapes[0].rect.x1 = "w + nope"
+        with self.assertRaises(grpc.RpcError) as ctx:
+            self.render.RenderMark(pb.RenderMarkRequest(
+                program=spec.mark.program, theme=spec.theme))
+        self.assertEqual(grpc.StatusCode.INVALID_ARGUMENT, ctx.exception.code())
+        self.assertIn("nope", ctx.exception.details())
+
+    def test_render_brand_renders_the_declared_catalog(self):
+        """An empty `kinds` means the brand's Catalog, which is what the proto
+        says and what this method used not to do -- it ignored `spec.catalog`
+        entirely and fell back to whatever the service could derive."""
+        brand = pb.Brand()
+        brand.spec.CopyFrom(_spec("c"))
+        brand.spec.catalog.kinds.append(data.ARTIFACT_KIND_THEME_CSS)
+        self.brands.CreateBrand(pb.CreateBrandRequest(brand_id="c", brand=brand))
+        op = self.render.RenderBrand(pb.RenderBrandRequest(name="brands/c"))
+        response = pb.RenderBrandResponse()
+        op.response.Unpack(response)
+        names = {a.name for a in response.brand_package.assets}
+        self.assertEqual({"theme.css"}, names)
+
+    def test_check_contrast_is_arithmetic_and_needs_no_brand(self):
+        spec = _spec(accent="#EEEEEE")  # unreadable on white, on purpose
+        response = self.render.CheckContrast(pb.CheckContrastRequest(theme=spec.theme))
+        pairs = {(f.foreground_role, f.background_role) for f in response.contrast}
+        self.assertIn(("on_accent", "accent"), pairs)
+
+    def test_render_theme_returns_the_contrast_it_was_not_asked_for(self):
+        """A caller who has to request the check separately is a caller who will
+        forget to."""
+        spec = _spec(accent="#EEEEEE")
+        response = self.render.RenderTheme(pb.RenderThemeRequest(theme=spec.theme))
+        self.assertIn("--brand-accent", response.css)
+        self.assertTrue(response.contrast)
+
+    def test_check_catalog_reports_only_what_is_missing(self):
+        """A Catalog is the FLOOR: shipping more than declared stays legal."""
+        spec = _spec()
+        spec.catalog.kinds.append(data.ARTIFACT_KIND_THEME_CSS)
+        spec.catalog.kinds.append(data.ARTIFACT_KIND_MARK_SVG)
+        response = self.render.CheckCatalog(pb.CheckCatalogRequest(
+            spec=spec, present=[data.ARTIFACT_KIND_THEME_CSS,
+                                data.ARTIFACT_KIND_THEME_JSON]))
+        self.assertEqual([data.ARTIFACT_KIND_MARK_SVG], list(response.missing))
+
+    def test_critique_spec_needs_no_saved_brand(self):
+        """Requiring a save first would make every rejected draft a permanent
+        revision, which is the opposite of what a history is for."""
+        response = self.studio.CritiqueSpec(pb.CritiqueSpecRequest(spec=_spec()))
+        self.assertTrue(response.critiques)
+        self.assertEqual("", response.model_id)
+
+    def test_a_critique_carries_the_contrast_it_computed(self):
+        """`Studio.critique` has always computed these and the response has
+        always had a field for them; nothing carried them across, so the half of
+        the answer that is arithmetic never reached a caller."""
+        self._create(brand_id="u", accent="#EEEEEE")
+        op = self.studio.CritiqueBrand(pb.CritiqueBrandRequest(name="brands/u"))
+        response = pb.CritiqueBrandResponse()
+        op.response.Unpack(response)
+        self.assertTrue(response.contrast)
+
+    def test_draft_copy_is_served_rather_than_unimplemented(self):
+        """Declared in the proto since 0.3.0 and absent from the servicer, so it
+        returned UNIMPLEMENTED while the service advertised it."""
+        self._create()
+        op = self.studio.DraftCopy(pb.DraftCopyRequest(name="brands/t"))
+        self.assertTrue(op.done)
+
+    def test_asset_service_is_registered(self):
+        """Four of five services were wired. Every method here returned
+        UNIMPLEMENTED while the proto declared them."""
+        self._create()
+        self.render.RenderBrand(pb.RenderBrandRequest(name="brands/t"))
+        response = self.assets.ListBrandAssets(
+            pb.ListBrandAssetsRequest(parent="brands/t"))
+        ids = {a.logical_id for a in response.brand_assets}
+        self.assertIn("theme.css", ids)
+        one = self.assets.GetBrandAsset(pb.GetBrandAssetRequest(
+            name="brands/t/assets/theme.css"))
+        self.assertEqual("text/css", one.media_type)
+        self.assertTrue(one.sha256)
+
+    def test_resolving_an_asset_uri_refuses_to_invent_one(self):
+        """Returning a plausible URL would be the worst outcome available: a
+        caller fetches it, gets nothing, and cannot tell a broken asset from a
+        service that was never hosting one."""
+        self._create()
+        self.render.RenderBrand(pb.RenderBrandRequest(name="brands/t"))
+        with self.assertRaises(grpc.RpcError) as ctx:
+            self.assets.ResolveBrandAssetUri(pb.ResolveBrandAssetUriRequest(
+                name="brands/t/assets/theme.css"))
+        self.assertEqual(grpc.StatusCode.FAILED_PRECONDITION, ctx.exception.code())
 
     def test_critique_reports_no_model_when_none_is_configured(self):
         """The empty model_id is how a caller tells a placeholder from a model's
