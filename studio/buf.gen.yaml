@@ -1,0 +1,28 @@
+# TypeScript bindings for brando.v1.
+#
+# GENERATED FROM THE DESCRIPTOR SET, not from the .proto files, and that is the
+# same decision `service/gen_stubs.py` makes for the Python stubs: the descriptor
+# set is the artifact `aip_proto_lint` already checked, closed over its imports.
+# Generating from sources instead would mean the TypeScript client could be built
+# from a different view of the schema than the gate saw -- and it would need its
+# own copy of meridian's theme.proto and of googleapis, which is two more places
+# for the schema to drift.
+#
+#   bazel build //proto/brando/v1:brand_service_descriptor_set
+#   npx buf generate bazel-bin/proto/brando/v1/brand_service_descriptor_set.binpb
+#
+# `npm run proto:check` regenerates and diffs, so a proto change that nobody
+# regenerated fails CI rather than shipping a client that disagrees with the
+# server.
+version: v2
+managed:
+  enabled: true
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: agent/lib/brando/gen
+    opt:
+      - target=ts
+      # The client speaks the same field names the service does. brando writes
+      # snake_case everywhere -- `skin_json` emits it, and a package built with
+      # camelCase silently lost `spec.display_name` once.
+      - json_types=true

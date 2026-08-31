@@ -1,0 +1,94 @@
+name: studio
+
+# The eve studio lives outside `bazel build //...` (see .bazelignore), so it
+# needs its own gate. A generated gRPC client that nothing regenerates and
+# diffs is exactly the unchecked declaration this repo is built around —
+# `//tools:catalog_check` exists because a Catalog nothing compared was already
+# false, and a TypeScript client nobody compares would be the same failure in a
+# second language.
+on:
+  push:
+    branches: [main]
+    paths: ["studio/**", "proto/**", ".github/workflows/studio.yml"]
+  pull_request:
+    paths: ["studio/**", "proto/**", ".github/workflows/studio.yml"]
+
+concurrency:
+  group: studio-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: studio
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+
+      # The contract tests need no service: they hold the zod schemas against
+      # the generated descriptors, which is the half of the twin claim that can
+      # be checked without a server.
+      - run: node --import tsx --test tests/contract.test.ts
+
+      # The client tests DO need one, because a mocked transport would prove
+      # only that the mock works. Bazel builds and runs the real service, and
+      # the studio talks to it exactly as it would in production.
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+      - name: serve brando, then round-trip the client against it
+        working-directory: .
+        run: |
+          set -eux
+          bazel run //service:server -- --port 50051 &
+          for _ in $(seq 1 60); do
+            (echo > /dev/tcp/127.0.0.1/50051) 2>/dev/null && break
+            sleep 1
+          done
+          cd studio
+          BRANDO_SERVICE_URL=http://localhost:50051 \
+            node --import tsx --test tests/brando-client.test.ts
+
+      # The eve app has to actually compile: `eve build` is what discovers the
+      # agent tree, so a subagent with no description or a tool whose filename
+      # is not a legal slug fails here rather than at the first request.
+      - run: npx eve build
+
+  # The generated client, regenerated and diffed. A proto change that nobody
+  # regenerated ships a client that disagrees with the server, and the
+  # disagreement is silent: a dropped field decodes as a default.
+  generated_client_is_current:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+      - run: npm ci
+      - name: regenerate from the descriptor set the linter checked
+        working-directory: .
+        run: |
+          set -eux
+          bazel build //proto/brando/v1:brand_service_descriptor_set
+          cp -L bazel-bin/proto/brando/v1/brand_service_descriptor_set.binpb \
+            studio/.image.binpb
+          cd studio
+          npx buf generate .image.binpb
+          rm .image.binpb
+      - run: git diff --exit-code agent/lib/brando/gen

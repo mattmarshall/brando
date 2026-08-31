@@ -1,0 +1,9 @@
+# The studio is a Node app, not a Bazel target.
+#
+# Without this, `bazel build //...` walks studio/node_modules — tens of
+# thousands of files, several of which contain BUILD files of their own from
+# unrelated ecosystems — and either takes minutes or fails on one of them.
+# The studio has its own gate: .github/workflows/studio.yml runs tsc, the
+# tests, and `buf generate && git diff --exit-code`, so it is checked, just not
+# here.
+studio

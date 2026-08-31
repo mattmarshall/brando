@@ -57,6 +57,42 @@ one source generates every artifact (icon, wordmark, deck, doc, theme). brando's
 vectorized Brando portrait (`selfbrand/portrait/`); the marionette generators in `selfbrand/`
 remain as the `marklib` pipeline dogfood.
 
+## The studio
+
+`studio/` is a Next.js + [eve](https://eve.dev) app: a brand agency of nine
+agents, over the deterministic tier below it.
+
+**Why an agency rather than a prompt.** `StudioService` is one `Engine` with
+three methods, so one model call produces a whole brand — story, palette,
+typography, catalog — in a single pass. Nobody staffs an agency with one
+generalist. Here a creative director routes to eight specialists, each owning
+one part of the brand and nothing else: `strategist`, `colorist`,
+`typographer`, `mark_designer`, `wordmark_designer`, `platform_producer`,
+`brandbook_author`, `critic`. The director writes no brand content of its own —
+the moment it starts choosing hex codes it has bypassed the contrast loop and
+the schema that forces it.
+
+**Nothing here computes anything.** Every fact the agents produce — a contrast
+ratio, a stylesheet, a rendered mark — is a gRPC call into the same `marklib`
+the Bazel rules run. There is no TypeScript contrast gate, and there will not
+be one: a second implementation is what this repo spent three releases removing.
+
+**The colorist has a loop it cannot skip.** `check_contrast` runs the real WCAG
+gate, and the instructions forbid returning a palette with any error-severity
+finding. That is the rule stated below — contrast is computed, never asked for —
+made enforceable at the point the palette is authored rather than at build time.
+
+```sh
+bazel run //service:server -- --port 50051      # the deterministic tier
+cd studio && npm install && npm run dev          # the agency
+```
+
+`studio/` is excluded from `bazel build //...` and has its own gate
+(`.github/workflows/studio.yml`): typecheck, tests against a real service, an
+`eve build`, and a regenerate-and-diff of the gRPC client, because a generated
+client nobody compares is the same unchecked declaration `//tools:catalog_check`
+exists to catch.
+
 ## The service
 
 `bazel run //service:server -- --port 50051` serves five AIP-linted gRPC
@@ -68,11 +104,19 @@ rules run — not a reimplementation, and not Bazel shelled out to.
 `//service:conformance_test` compares the two byte for byte across every brand
 in the repo, which is what keeps that from being a comment.
 
-**What it renders, and what it does not.** A brand's mark is brand-specific
-geometry: a spec *names* a generator rather than containing the drawing, and
-executing a caller-supplied generator is remote code execution, not a feature. So
-the service renders what is derivable from the spec — theme, stylesheet, contrast,
-templated doc surfaces — and asking it for a mark is refused with a reason.
+**What it renders, and what it does not.** This used to say the service could
+not draw a mark at all, because a spec *named* a generator and executing a
+caller-supplied generator is remote code execution rather than a feature. That
+refusal still stands for a `MarkSpec.generator`. What changed in 0.6.0 is that a
+spec can now *carry* its drawing: a `brando.v1.MarkProgram` is primitives,
+boolean operations and arithmetic over named parameters, with no assignment, no
+recursion and no unbounded loop, so executing one is evaluation and it
+terminates. `//examples:citizen_sh_program_parity` asserts a transcribed program
+emits bytes identical to the hand-written generator it replaces.
+
+A construction that is genuinely a program — one whose shape *count* is not known
+until the CSG runs — is still not data, and `generator` remains the supported
+path for it.
 
 **The model never draws.** `ProposeSpec` returns a `BrandSpec` — numbers and hex
 codes — and the deterministic pipeline executes them. Contrast is always
