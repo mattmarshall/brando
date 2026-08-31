@@ -1,0 +1,154 @@
+# citizen-sh's mark, as a MarkProgram rather than as Python.
+#
+# THIS IS THE GATE, not leangres. leangres is four boxes and two unions; it
+# exercises the Canvas seam and nothing else. This file is what says whether the
+# expression grammar is real, because citizen-sh does not TABULATE its colonnade:
+#
+#   "Spacing is solved rather than tabulated, so changing `columns` or
+#    `door_extra` cannot leave the colonnade off-centre."
+#
+# So the columns are one `repeat` over a closed-form position, and reproducing
+# them needs integer floor division (which gap is the door), a conditional (only
+# the gaps past the door are widened), and an index. If any of those were missing
+# the transcription would have to hard-code four x positions, and the mark would
+# stop being parametric the moment it became data -- which is exactly the failure
+# this format exists to avoid.
+#
+# ONE THING THE DSL CANNOT SAY. `gen_mark.py` RAISES on an odd column count:
+# with an odd count the colonnade's centre falls on a column, so there is no
+# middle gap to widen and the portico has no door. That is an invariant, not a
+# measurement, and this format has nowhere to put it. Recorded here rather than
+# quietly lost.
+
+canvas: 1024
+
+params { name: "columns" value: "4" }
+params { name: "column_w" value: "9.0" }
+params { name: "column_h" value: "42.0" }
+# Outer width of the colonnade.
+params { name: "span" value: "76.0" }
+params { name: "entablature_h" value: "11.0" }
+# The roof oversails the columns, per side.
+params { name: "entablature_pad" value: "5.0" }
+params { name: "stylobate_h" value: "8.0" }
+# The base oversails further than the roof.
+params { name: "stylobate_pad" value: "8.0" }
+# The reveal between roof, columns and base.
+params { name: "course_gap" value: "2.5" }
+# How much wider the central intercolumniation is: the door.
+params { name: "door_extra" value: "14.0" }
+params { name: "fit_frac" value: "0.80" }
+# Bottom of the stylobate, in model units.
+params { name: "base_y" value: "26.0" }
+
+params { name: "gaps" value: "columns - 1" }
+# The MIDDLE gap index: 1 for four columns.
+params { name: "door" value: "(gaps - 1) // 2" }
+params { name: "base_gap" value: "(span - columns * column_w - door_extra) / gaps" }
+
+params { name: "col_y0" value: "base_y + stylobate_h + course_gap" }
+params { name: "col_top" value: "col_y0 + column_h" }
+params { name: "roof_y0" value: "col_top + course_gap" }
+params { name: "x_left" value: "(100.0 - span) / 2.0" }
+params { name: "x_right" value: "(100.0 + span) / 2.0" }
+shapes {
+  name: "columns"
+  repeat {
+    count: "columns"
+    index_var: "i"
+    body {
+      rect {
+        x0: "x_left + i * (column_w + base_gap) + (i > door ? door_extra : 0)"
+        y0: "col_y0"
+        x1: "x_left + i * (column_w + base_gap) + (i > door ? door_extra : 0) + column_w"
+        y1: "col_y0 + column_h"
+      }
+    }
+  }
+}
+
+shapes {
+  name: "stylobate"
+  rect {
+    x0: "x_left - stylobate_pad"
+    y0: "base_y"
+    x1: "x_right + stylobate_pad"
+    y1: "base_y + stylobate_h"
+  }
+}
+
+shapes {
+  name: "entablature"
+  rect {
+    x0: "x_left - entablature_pad"
+    y0: "roof_y0"
+    x1: "x_right + entablature_pad"
+    y1: "roof_y0 + entablature_h"
+  }
+}
+
+shapes {
+  name: "whole"
+  union_of { shapes: "entablature" shapes: "stylobate" shapes: "columns" }
+}
+
+fit {
+  bounds_of: "whole"
+  pad: "(1 - fit_frac) / 2"
+}
+
+# Back to front. The foundation is the accent: it is the layer citizen-sh
+# actually builds first, and the one nobody else in the stack provides.
+layers {
+  name: "base"
+  shape: "stylobate"
+  fill {
+    light { theme { mode: "light" role: "accent" } }
+    dark { theme { mode: "dark" role: "accent" } }
+  }
+}
+
+# The mark's ink is the DARK ground and its paper is the LIGHT ground -- not the
+# `fg` roles, which are softer greys tuned for running text. Both example brands
+# are drawn this way, and naming the ground rather than the foreground is what
+# makes the mark's two colours the brand's own two colours.
+layers {
+  name: "columns"
+  shape: "columns"
+  fill {
+    light { theme { mode: "dark" role: "bg" } }
+    dark { theme { mode: "light" role: "bg" } }
+  }
+}
+
+layers {
+  name: "roof"
+  shape: "entablature"
+  fill {
+    light { theme { mode: "dark" role: "bg" } }
+    dark { theme { mode: "light" role: "bg" } }
+  }
+}
+
+variants {
+  name: "flat"
+  mode: "light"
+  ground {
+    light { theme { mode: "light" role: "bg" } }
+    dark { theme { mode: "light" role: "bg" } }
+  }
+}
+
+variants {
+  name: "inkbg"
+  mode: "dark"
+  ground {
+    light { theme { mode: "dark" role: "bg" } }
+    dark { theme { mode: "dark" role: "bg" } }
+  }
+}
+
+variants {
+  name: "transparent"
+  mode: "light"
+}

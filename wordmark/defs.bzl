@@ -106,6 +106,99 @@ def brand_svgs(
         visibility = visibility or ["//visibility:public"],
     )
 
+# The interpreter and the schema it validates against, as `Label()` constants for
+# the same reason `skins/defs.bzl` uses them: these macros run in the CALLER's
+# package, and bzlmod resolves a plain-string label with the caller's repo
+# mapping. Which schema validated a brand was once decided by an accident of the
+# consumer's dependency graph, and that is the bug that taught this file to spell
+# every external label out.
+_MARK_PROGRAM = Label("//tools:mark_program")
+_SKIN_JSON = Label("//skins:skin_json")
+_MARK_PROGRAM_SCHEMA = Label("//proto/brando/v1:mark_program_schema.json")
+
+def brand_mark_program(
+        name,
+        program,
+        skin,
+        prefix = None,
+        variants = None,
+        layers = None,
+        extra_outs = [],
+        canvas = None,
+        visibility = None):
+    """Layered SVGs from a MarkProgram — `brand_svgs`, for a mark that is data.
+
+    IDENTICAL OUTS CONTRACT TO `brand_svgs`, deliberately. Same `variants` /
+    `layers` / `prefix` attributes, same computed filenames, same flags passed
+    down so the renderer iterates what Bazel declared rather than its own
+    constants. A brand converting a hand-written generator to a MarkProgram
+    changes which rule it calls and nothing else, and `brand_suite` can pick
+    between them without its callers knowing.
+
+    `skin` is the brand's Theme JSON — `brand_skin`'s `:<name>_json`. It is
+    REQUIRED rather than optional because a MarkProgram's colours may name
+    palette roles, and resolving them against a theme that was not supplied
+    would mean either a missing fill or a guessed one. Both example brands
+    resolve every colour this way, which is the point: the mark stops carrying a
+    second copy of the palette.
+
+    Args:
+      name: target name; also the genrule producing the SVGs.
+      program: the `brando.v1.MarkProgram` textproto.
+      skin: the brand's Theme JSON (`brand_skin`'s `:<name>_json`).
+      prefix: filename prefix, as in `brand_svgs`.
+      variants: variant names the program declares.
+      layers: layer suffixes, e.g. `["turnstile.svg", "svg"]`.
+      extra_outs: real outputs outside the grid — the `bg.svg` a transparent
+        variant legitimately does not have.
+      canvas: override the program's own canvas size, in px.
+      visibility: target visibility.
+    """
+    if not variants:
+        fail("%s: needs `variants`. Unlike brand_svgs there is no legacy " % name +
+             "explicit-`outs` path here, because nothing has ever called this " +
+             "rule the old way and adding a second way now would be inventing " +
+             "the drift the flags exist to remove.")
+
+    # textproto -> JSON through the same stdlib parser a consumer's build uses.
+    # Not a convenience: it is the gate. `skin_json` has no protobuf wheel to
+    # fall back on, and a MarkProgram is by a distance the largest thing it has
+    # been asked to read. A program it cannot parse is a program a brand repo
+    # cannot ship, and this is where that fails — at build time, in the brand
+    # that wrote it.
+    json_target = "%s_json" % name
+    native.genrule(
+        name = json_target,
+        srcs = [program, _MARK_PROGRAM_SCHEMA],
+        outs = ["%s_program.json" % name],
+        cmd = (
+            "$(execpath %s) " % _SKIN_JSON +
+            "--schema $(execpath %s) " % _MARK_PROGRAM_SCHEMA +
+            "--textpb $(execpath %s) " % program +
+            "--out $@"
+        ),
+        tools = [_SKIN_JSON],
+        visibility = visibility or ["//visibility:public"],
+    )
+
+    args = " " + _emit_args(prefix, variants = variants, layers = layers)
+    if canvas:
+        args += " --canvas %d" % canvas
+
+    native.genrule(
+        name = name,
+        srcs = [":%s" % json_target, skin],
+        outs = _svg_outs(prefix, variants, layers or []) + extra_outs,
+        cmd = (
+            "$(execpath %s) $(RULEDIR)" % _MARK_PROGRAM +
+            " --program $(execpath :%s)" % json_target +
+            " --theme $(execpath %s)" % skin +
+            args
+        ),
+        tools = [_MARK_PROGRAM],
+        visibility = visibility or ["//visibility:public"],
+    )
+
 def brand_icons(
         name,
         rasterizer,

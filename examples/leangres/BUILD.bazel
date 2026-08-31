@@ -14,7 +14,8 @@ should not be blocked from having a stylesheet because nobody has drawn a logo.
 The mark arrived later, and adding it was two attributes.
 """
 
-load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+load("//:defs.bzl", "brand_mark_program")
 load("//pkg:suite.bzl", "brand_suite")
 load("//:version.bzl", "VERSION")
 
@@ -70,3 +71,56 @@ brand_suite(
     source_repo = "tomato-bazel/leangres",
 )
 
+
+# ── the same mark, as data ───────────────────────────────────────────────────
+# `leangres_program.textproto` is `gen_mark.py`'s geometry stated as a
+# `brando.v1.MarkProgram`, and `:leangres_program_parity` asserts the two emit
+# byte-identical SVG.
+#
+# THE RULE IS INSTANTIATED, not just the test. Three bugs in this repo shipped
+# for two releases apiece because a rule had no in-repo caller —
+# `brand_iconcomposer` still has none — so `brand_mark_program` gets one here on
+# the day it is written. The `_program` prefix keeps its filenames clear of the
+# suite's; the point is that the rule runs, not that it wins the name.
+brand_mark_program(
+    name = "leangres_program_svgs",
+    layers = [
+        "turnstile.svg",
+        "halmos.svg",
+        "svg",
+    ],
+    prefix = "leangres_program",
+    program = "leangres_program.textproto",
+    skin = ":leangres_skin_json",
+    variants = [
+        "flat",
+        "inkbg",
+        "transparent",
+    ],
+    extra_outs = [
+        # Only the grounded variants have a background layer, which is the same
+        # honest asymmetry `brand_svgs` carries.
+        "leangres_program_flat.bg.svg",
+        "leangres_program_inkbg.bg.svg",
+    ],
+)
+
+py_test(
+    name = "leangres_program_parity",
+    size = "small",
+    srcs = ["//examples:program_parity_test.py"],
+    data = [
+        ":leangres_program_svgs_json",
+        ":leangres_skin_json",
+    ],
+    env = {
+        "BRAND": "leangres",
+        "PROGRAM_JSON": "$(rootpath :leangres_program_svgs_json)",
+        "THEME_JSON": "$(rootpath :leangres_skin_json)",
+    },
+    main = "program_parity_test.py",
+    deps = [
+        ":gen_mark_lib",
+        "//marklib:program",
+    ],
+)

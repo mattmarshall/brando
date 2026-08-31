@@ -90,10 +90,21 @@ message Identity {
   string brandbook_uri = 7;
 }
 
-// How the mark is generated. brando does NOT model geometry: mark construction is
-// genuinely per-brand — aion's ring/bar/stem, fastverk's phi-triangle, meridian's
-// refracted beam — and roughly 60% of a generator is legitimately its own code.
-// What is shared is which variants and layers exist, and at what sizes.
+// How the mark is produced, and where its geometry lives.
+//
+// THIS MESSAGE USED TO SAY "brando does NOT model geometry", and that was the
+// right call for as long as the only way to state a drawing was to write code.
+// Mark construction is genuinely per-brand — aion's ring/bar/stem, fastverk's
+// phi-triangle, meridian's refracted beam — so a spec named a `generator` and a
+// build ran it, which is why a SERVICE handed a spec could never produce a mark.
+//
+// `MarkProgram` narrows that claim rather than overturning it. Geometry that is
+// primitives, boolean operations and arithmetic over named parameters is data,
+// and brando can model it. Geometry that is genuinely a program — tomato's
+// facets, whose layer membership falls out of `atan2` of a midpoint and whose
+// COUNT is not known until the CSG runs — is not, and `generator` remains the
+// supported path for it. Set exactly one; the two are alternatives, not a
+// legacy field and its replacement.
 message MarkSpec {
   // Bazel label of the brand's generator, e.g. "//gen:gen_mark".
   string generator = 1;
@@ -116,6 +127,388 @@ message MarkSpec {
 
   // Supersample factor for rasterization.
   int32 supersample = 7;
+
+  // The mark as DATA, rather than as a Bazel label naming code that draws it.
+  //
+  // WHY BOTH FIELDS EXIST. `generator` is a label; a service handed a spec cannot
+  // execute it, which is why `RenderService` refuses to produce a mark and says
+  // so. That refusal is correct — running a caller-supplied generator is remote
+  // code execution, not a feature — but it leaves the one artifact a brand is
+  // most identified by outside the system entirely.
+  //
+  // A `MarkProgram` closes that without reopening it: the drawing is a closed,
+  // schema-checked vocabulary of primitives, boolean operations and arithmetic
+  // over named parameters, so executing it is evaluation rather than execution.
+  // It stays re-renderable at any size, which is the property a rasterized logo
+  // loses and the whole reason marklib exists.
+  //
+  // Set exactly one. A repo that owns its geometry in Python keeps `generator`
+  // and changes nothing.
+  MarkProgram program = 8;
+}
+
+// A mark, as data a deterministic interpreter can execute.
+//
+// THIS IS A DRAWING, NOT A DRAWING PROGRAM IN THE TURING SENSE, and the
+// difference is the point. There is no assignment, no recursion and no
+// unbounded loop: `params` are solved once in order, `shapes` form a DAG, and
+// `repeat` runs a count fixed before it starts. An interpreter for it always
+// terminates, which is what makes it safe to accept from a model or over the
+// wire.
+//
+// Every numeric field is a STRING holding an arithmetic expression over the
+// program's own parameters -- `"stem_x + stem_w"`, not `33.0`. That is what
+// makes the mark parametric rather than merely serialized: changing `stem_w`
+// moves the bar, because the bar's position was never a number in the first
+// place. Every real generator in this repo already works this way; citizen-sh
+// says so outright ("spacing is SOLVED rather than tabulated, so changing
+// `columns` cannot leave the colonnade off-centre").
+message MarkProgram {
+  // Solved in order. A later parameter may reference an earlier one, which is
+  // how a generator's derived measurements -- leangres's `mid`, the vertical
+  // midpoint both the bar and the halmos are placed against -- stay derived
+  // instead of being restated at each use.
+  repeated Param params = 1;
+
+  // A named DAG. Order matters only in that a shape may reference shapes
+  // declared before it.
+  repeated Shape shapes = 2;
+
+  // Back to front, exactly as a brand adds them to a marklib Canvas.
+  repeated LayerDef layers = 3;
+
+  repeated VariantDef variants = 4;
+
+  FitDef fit = 5;
+
+  // Canvas edge in px. 1024 when unset, matching every generator in this repo.
+  int32 canvas = 6;
+
+  // Corner radius of the background square, as a fraction of the canvas.
+  // marklib's 0.20 when empty.
+  string bg_round = 7;
+}
+
+// One solved measurement, or one table of them.
+//
+// A SCALAR IS NOT ENOUGH, and the corpus says so plainly. brando's own mark
+// carries `fingers` as four 3-tuples of hand-tuned values and `attach_xs` as a
+// 4-tuple; tomato carries per-facet point lists. None of those is a formula over
+// an index — they are tables, and a parameter language that cannot hold a table
+// forces the drawing back into code.
+message Param {
+  string name = 1;
+
+  oneof form {
+    // An arithmetic expression; a bare number is the degenerate case.
+    string value = 2;
+    // An ordered list of expressions, addressed as `name[i]`.
+    ExprList list = 3;
+    // Rows of expressions, addressed as `name[i][j]` and bindable by `repeat`.
+    ExprTable table = 4;
+  }
+}
+
+message ExprList {
+  repeated string values = 1;
+}
+
+message ExprTable {
+  repeated ExprList rows = 1;
+}
+
+// A point in model space. Both components are expressions.
+message Point {
+  string x = 1;
+  string y = 2;
+}
+
+// One node of the geometry DAG: a primitive, an operation over other shapes, or
+// an affine transform of one.
+message Shape {
+  // How later shapes and layers refer to this one. Empty is legal only for a
+  // `repeat` body, which is instantiated rather than referenced.
+  string name = 1;
+
+  oneof form {
+    Rect rect = 2;
+    Poly poly = 3;
+    Ngon ngon = 4;
+    Circle circle = 5;
+    RoundedRect rounded_rect = 6;
+    Polyline polyline = 7;
+
+    // Boolean operations. Named `*_of` because `union` is a reserved word in
+    // several languages generated bindings target.
+    Combine union_of = 8;
+    Combine intersection_of = 9;
+    Difference difference_of = 10;
+
+    // `distance: "0"` is the standard shapely self-intersection repair, which
+    // every generator in this repo relies on.
+    Buffer buffer = 11;
+
+    Rotate rotate = 12;
+    Translate translate = 13;
+    Scale scale = 14;
+
+    Repeat repeat = 15;
+  }
+}
+
+// An axis-aligned rectangle.
+message Rect {
+  string x0 = 1;
+  string y0 = 2;
+  string x1 = 3;
+  string y1 = 4;
+}
+
+// An explicit polygon. Named `Poly` rather than `Polygon` so a generated
+// binding does not collide with the geometry type of whatever library reads it.
+message Poly {
+  repeated Point points = 1;
+}
+
+// A regular polygon, optionally elliptical. Three generators here hand-roll
+// exactly this as `_ngon`, which is a fair sign it belongs in the vocabulary.
+message Ngon {
+  string cx = 1;
+  string cy = 2;
+  string rx = 3;
+  string ry = 4;
+  string sides = 5;
+  string rot_deg = 6;
+}
+
+// A circle, approximated as a polygon. `segments` defaults to 96 -- the value
+// `selfbrand`'s generator uses, chosen so the curve survives a 1024px render.
+message Circle {
+  string cx = 1;
+  string cy = 2;
+  string r = 3;
+  string segments = 4;
+}
+
+// A rectangle with rounded corners, built the way the generators build it: a
+// box buffered outward with a mitre-free join.
+message RoundedRect {
+  string x0 = 1;
+  string y0 = 2;
+  string x1 = 3;
+  string y1 = 4;
+  string radius = 5;
+  string quad_segs = 6;
+}
+
+// A stroked path: the capsules and tapered fingers marks are actually made of.
+message Polyline {
+  repeated Point points = 1;
+  // Half-width, matching how the generators buffer a LineString.
+  string half_width = 2;
+  // Ratio of the end width to `half_width`; 1 (or empty) is an untapered
+  // capsule.
+  string taper = 3;
+}
+
+// Union or intersection of two or more shapes, by name.
+message Combine {
+  repeated string shapes = 1;
+}
+
+// `base` minus every shape in `subtract`.
+message Difference {
+  string base = 1;
+  repeated string subtract = 2;
+}
+
+// Buffering is where byte-identical output is won or lost, so every option
+// shapely takes is stated rather than defaulted: brando's own mark buffers at
+// `quad_segs=24` in one place and `quad_segs=12` in another, and a hairline seam
+// is closed by a positive buffer followed by an equal NEGATIVE one. An
+// interpreter that quietly picked shapely's defaults would produce a plausible
+// mark with different coordinates.
+message Buffer {
+  string shape = 1;
+  // May be negative, which erodes rather than grows. `"0"` is the standard
+  // self-intersection repair every generator here relies on.
+  string distance = 2;
+  string quad_segs = 3;
+  // shapely's join style: 1 round, 2 mitre, 3 bevel. Round when empty.
+  string join_style = 4;
+  // shapely's cap style: 1 round, 2 flat, 3 square. Round when empty.
+  string cap_style = 5;
+  string mitre_limit = 6;
+}
+
+message Rotate {
+  string shape = 1;
+  string angle_deg = 2;
+  // The model-space origin. The geometry's own centroid when absent.
+  Point origin = 3;
+}
+
+message Translate {
+  string shape = 1;
+  string dx = 2;
+  string dy = 3;
+}
+
+message Scale {
+  string shape = 1;
+  string sx = 2;
+  string sy = 3;
+  Point origin = 4;
+}
+
+// The same body, `count` times, with an index bound so each instance can differ.
+//
+// This is what makes a colonnade, a blade fan or a stack of bars one statement
+// rather than N. The body sees the loop variable (`i`, 0-based) and `n`, and
+// nothing else new; positions are closed-form functions of `i` rather than a
+// running total, which is how they stay solvable in one pass.
+message Repeat {
+  // The number of instances. Ignored when `over` names a table, whose row count
+  // decides instead.
+  string count = 1;
+  // Defaults to "i".
+  string index_var = 2;
+  Shape body = 3;
+  // A table parameter to walk. Each row is bound as `row`, addressed `row[j]`,
+  // which is how a per-instance table of hand-tuned values -- brando's own
+  // `fingers` -- drives the body without becoming a formula it is not.
+  string over = 5;
+  // Instances are unioned by default. Set to keep them separate -- a fan whose
+  // blades alternate tone needs the pieces, not the union.
+  bool separate = 4;
+}
+
+// A colour: either stated outright, or resolved from the brand's own Theme.
+//
+// A LITERAL IS THE DEFAULT, AND THAT IS DELIBERATE. A mark's facet colours are
+// usually not palette roles, and tomato's skin says so as a decision rather than
+// a concession: "gen_tomato_v2's body #E64A33 and calyx #43A047 are the logo's
+// own facet colours and are not palette roles." Binding a logo's red to
+// `theme.accent` would make a palette change silently redraw the mark, which is
+// the opposite of what a brand wants.
+//
+// The theme reference exists for the colours that genuinely ARE roles -- the
+// ground a mark sits on, the foreground it is drawn in. Those are the ones that
+// drift: fastverk's LaTeX class said #E0A33E where its skin said #F2C46A, and
+// nothing compared them. Where a role is the truth, naming it means the two
+// cannot disagree.
+message ColorRef {
+  oneof source {
+    // "#RGB", "#RRGGBB" or "#RRGGBBAA".
+    string literal = 1;
+    ThemeColor theme = 2;
+  }
+}
+
+// A role in one of the brand's two palettes.
+//
+// `mode` is stated rather than inherited from the variant, because a mark's
+// light and dark forms are not the UI's. leangres draws its turnstile in the
+// LIGHT palette's `bg` when it sits on ink: paper on ink, which is a different
+// statement from "the dark palette's foreground".
+message ThemeColor {
+  // "light" or "dark".
+  string mode = 1;
+  // A meridian.theme.v1.Palette field name, e.g. "accent", "fg", "bg".
+  string role = 2;
+}
+
+// A colour in each of the two forms a mark takes. The variant's `mode` picks.
+message ModalColor {
+  ColorRef light = 1;
+  ColorRef dark = 2;
+}
+
+// One layer of the mark, corresponding exactly to a marklib Canvas layer.
+message LayerDef {
+  // Also the layer's filename suffix: `<prefix>_<variant>.<name>.svg`.
+  string name = 1;
+
+  // The shape this layer draws, by name.
+  string shape = 2;
+
+  ModalColor fill = 3;
+
+  Gradient gradient = 4;
+
+  // Carried into the Icon Composer manifest. "normal" when empty.
+  string blend = 5;
+
+  // 0..1, for soft overlays such as a specular highlight. 1 when empty.
+  string opacity = 6;
+
+  // Drawn in the composite but written to no file of its own -- marklib's
+  // `emit_file=False`. Inverted relative to that field so the default (false)
+  // is the ordinary case: brando's own mark has exactly one such layer, the ink
+  // halo that separates the hand from the bar, and it has no standalone asset
+  // and no entry in any BUILD file.
+  bool composite_only = 7;
+}
+
+// An N-stop linear gradient, in the form marklib already accepts.
+message Gradient {
+  repeated GradientStop stops = 1;
+  // In the SVG frame: 90 is top-to-bottom, 0 is left-to-right.
+  string angle_deg = 2;
+}
+
+message GradientStop {
+  // 0..1. Evenly spaced when every stop leaves it empty.
+  string offset = 1;
+  ModalColor color = 2;
+}
+
+// One rendering of the mark: which palette its colours resolve in, and what it
+// sits on.
+message VariantDef {
+  string name = 1;
+
+  // "light" or "dark" -- which half of every ModalColor this variant takes.
+  string mode = 2;
+
+  // The background square. Absent means transparent, which is why this is a
+  // message rather than a string: "no ground" and "an unset ground" are the
+  // same mistake waiting to happen otherwise.
+  ModalColor ground = 3;
+
+  // Parameters this variant changes. brando's own variants differ by whether the
+  // bar carries a gradient; a variant that were only ever a mode and a ground
+  // would not reach them, and the brand would need a second program to say one
+  // different thing.
+  repeated Param param_overrides = 4;
+}
+
+// How model space maps to pixels: marklib.fit's arguments, as data.
+message FitDef {
+  // Exactly one, mirroring `fit()`'s own contract.
+  oneof extent {
+    // Fit to the bounds of this shape -- the usual case, where the geometry
+    // decides the frame.
+    string bounds_of = 1;
+    // Half the model-space width the mark should occupy.
+    string half_extent = 2;
+    // An explicit pixels-per-model-unit.
+    string scale = 3;
+  }
+
+  // A fraction of the FULL canvas, per side.
+  string pad = 4;
+
+  // The model point that lands at the canvas centre. The bounds' centre in
+  // `bounds_of` mode, the origin otherwise.
+  Point center = 5;
+
+  // marklib flips y by default, because these model spaces are y-up and pixels
+  // are not. Set only for a model space that is already y-down. Inverted so the
+  // default is the flip every generator here wants -- citizen-sh's first render
+  // came out with the foundation resting on top of the columns, and that is the
+  // failure this default prevents.
+  bool no_flip_y = 6;
 }
 
 // An obtainable font file. Mirrors meridian.theme.v1.FontSource, plus the

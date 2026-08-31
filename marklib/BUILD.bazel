@@ -111,6 +111,43 @@ py_library(
     deps = [":marklib"],
 )
 
+# marklib.expr — the arithmetic a MarkProgram is allowed to do.
+#
+# STDLIB ONLY, and for the same reason `:tokens` and `:palette` are: a caller
+# validating an expression should not need the geometry stack. It is also the
+# security boundary — a MarkProgram may arrive from a model or off the wire, and
+# `eval` on either is remote code execution — so it is worth being able to test
+# it with nothing else present.
+py_library(
+    name = "expr",
+    srcs = ["expr.py"],
+    imports = [".."],
+)
+
+# marklib.program — a MarkProgram, executed into a Canvas.
+#
+# This is what lets a mark live IN a BrandSpec rather than being named by it,
+# which is what `RenderService` needs to render one at all. It builds a Canvas
+# and stops: emission stays `:marklib`'s, so the interpreter is a second author
+# of one renderer rather than a second renderer.
+py_library(
+    name = "program",
+    srcs = ["program.py"],
+    imports = [".."],
+    deps = [
+        ":expr",
+        ":marklib",
+        requirement("shapely"),
+    ],
+)
+
+# The interpreter has NO py_binary here on purpose. A main file inside this
+# directory puts `marklib/` on sys.path ahead of the repo root, so `import
+# marklib` would resolve to `marklib.py` rather than to the package and
+# `from marklib import expr` would fail. `//tools:mark_program` is the entry
+# point; `:contrast` and `:theme_css` get away with it only because palette.py
+# and tokens.py import nothing from their own package.
+
 # ── tests ────────────────────────────────────────────────────────────────────
 # marklib had NO tests before 0.2.0. Not one — including for the SVG/raster
 # gradient parity that 0.1.0 introduced, which is the one place a silent visual
@@ -193,6 +230,22 @@ py_test(
     srcs = ["wordmark_test.py"],
     imports = [".."],
     deps = [":wordmark"],
+)
+
+py_test(
+    name = "expr_test",
+    size = "small",
+    srcs = ["expr_test.py"],
+    imports = [".."],
+    deps = [":expr"],
+)
+
+py_test(
+    name = "program_test",
+    size = "small",
+    srcs = ["program_test.py"],
+    imports = [".."],
+    deps = [":program"],
 )
 
 # The SVG and raster implementations of linear_gradient must agree. Nothing

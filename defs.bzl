@@ -5,7 +5,7 @@ A brand loads from here:
     load("@brando//:defs.bzl",
          "brand_doc", "brand_resources", "brand_latex_class",
          "brand_skin", "brand_mdbook_theme",
-         "brand_svgs", "brand_icons", "brand_iconcomposer",
+         "brand_svgs", "brand_mark_program", "brand_icons", "brand_iconcomposer",
          "brand_wordmark", "brand_wordmark_glyphs", "brand_office_pptx", "brand_office_docx")
 
 The mark-authoring Python library is consumed as py_library deps, not loaded:
@@ -35,6 +35,7 @@ load(
     "//wordmark:defs.bzl",
     _brand_icons = "brand_icons",
     _brand_iconcomposer = "brand_iconcomposer",
+    _brand_mark_program = "brand_mark_program",
     _brand_office_docx = "brand_office_docx",
     _brand_office_pptx = "brand_office_pptx",
     _brand_svgs = "brand_svgs",
@@ -49,6 +50,7 @@ brand_latex_class = _brand_latex_class
 brand_skin = _brand_skin
 brand_mdbook_theme = _brand_mdbook_theme
 brand_svgs = _brand_svgs
+brand_mark_program = _brand_mark_program
 brand_icons = _brand_icons
 brand_iconcomposer = _brand_iconcomposer
 brand_wordmark = _brand_wordmark
