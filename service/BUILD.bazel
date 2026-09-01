@@ -99,6 +99,43 @@ _BRAND_CSS = {
     "resumarsh": "//examples/resumarsh:resumarsh_css",
 }
 
+# The Connect door: the same servicers, reachable without a server.
+#
+# A SECOND TRANSPORT, NOT A SECOND SERVICE. It routes a Connect path to a method
+# on the same `RenderServicer`/`StudioServicer` `serve()` registers and converts
+# through `json_format`. That is what lets the deterministic tier answer from a
+# serverless function -- the five methods it serves touch no Store, so there is
+# nothing that needs a process with a lifetime.
+py_library(
+    name = "connect_app",
+    srcs = ["connect_app.py"],
+    imports = [".."],
+    deps = [
+        ":brando_py_proto",
+        ":server_lib",
+    ],
+)
+
+py_binary(
+    name = "connect",
+    srcs = ["connect_app.py"],
+    imports = [".."],
+    main = "connect_app.py",
+    visibility = ["//visibility:public"],
+    deps = [":connect_app"],
+)
+
+py_test(
+    name = "connect_app_test",
+    size = "small",
+    srcs = ["connect_app_test.py"],
+    imports = [".."],
+    deps = [
+        ":brando_py_proto",
+        ":connect_app",
+    ],
+)
+
 py_library(
     name = "studio",
     srcs = ["studio.py"],

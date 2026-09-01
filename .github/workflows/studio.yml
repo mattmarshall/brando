@@ -9,9 +9,9 @@ name: studio
 on:
   push:
     branches: [main]
-    paths: ["studio/**", "proto/**", ".github/workflows/studio.yml"]
+    paths: ["studio/**", "proto/**", "service/**", "gen/**", "wsgi.py", ".github/workflows/studio.yml"]
   pull_request:
-    paths: ["studio/**", "proto/**", ".github/workflows/studio.yml"]
+    paths: ["studio/**", "proto/**", "service/**", "gen/**", "wsgi.py", ".github/workflows/studio.yml"]
 
 concurrency:
   group: studio-${{ github.ref }}
@@ -92,3 +92,37 @@ jobs:
           npx buf generate .image.binpb
           rm .image.binpb
       - run: git diff --exit-code agent/lib/brando/gen
+
+  # The VENDORED PYTHON STUBS, regenerated and diffed.
+  #
+  # Same argument as the TypeScript client one above, in the other language.
+  # `gen/` exists because the deployed deterministic tier has no Bazel to build
+  # stubs from, and generated code that nothing compares is drift with a
+  # plausible face: a renamed proto field decodes as a default, silently.
+  generated_python_stubs_are_current:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install grpcio-tools protobuf
+      - name: regenerate from the descriptor set the linter checked
+        run: |
+          set -eux
+          bazel build //proto/brando/v1:brand_service_descriptor_set
+          for proto in proto/theme.proto brando/v1/brand.proto brando/v1/brand_service.proto; do
+            python service/gen_stubs.py \
+              --descriptor_set bazel-bin/proto/brando/v1/brand_service_descriptor_set.binpb \
+              --out_dir gen --proto "$proto"
+          done
+      - run: git diff --exit-code gen
+
+      # The deployed entrypoint must import with no Bazel and no runfiles — which
+      # is the whole point of vendoring, and the thing that breaks first.
+      - run: pip install -r requirements-service.txt
+      - run: python -c "import wsgi; assert callable(wsgi.app)"

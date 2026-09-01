@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "services": {
+    "studio": {
+      "root": "studio/",
+      "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "brando",
+          "format": "url",
+          "env": "BRANDO_SERVICE_URL"
+        }
+      ]
+    },
+
+    "brando": {
+      "root": ".",
+      "runtime": "python3.12",
+      "entrypoint": "wsgi.py",
+      "installCommand": "pip install -r requirements-service.txt"
+    }
+  },
+
+  "rewrites": [
+    { "source": "/(.*)", "destination": { "service": "studio" } }
+  ]
+}

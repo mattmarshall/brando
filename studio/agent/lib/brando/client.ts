@@ -17,7 +17,7 @@
  * with the server.
  */
 import { createClient, type Client } from "@connectrpc/connect";
-import { createGrpcTransport } from "@connectrpc/connect-node";
+import { createConnectTransport, createGrpcTransport } from "@connectrpc/connect-node";
 
 import { AssetService, BrandService, RenderService, RevisionService, StudioService } from "./gen/brando/v1/brand_service_pb";
 
@@ -30,35 +30,66 @@ import { AssetService, BrandService, RenderService, RevisionService, StudioServi
  * attribute.
  */
 export function brandoTarget(): string {
-  const target = process.env.BRANDO_SERVICE_URL?.trim();
-  if (!target) {
-    throw new Error(
-      "BRANDO_SERVICE_URL is not set. The studio has no deterministic tier " +
-        "without it: contrast, stylesheets and marks all come from brando's " +
-        "gRPC service. Run it locally with " +
-        "`bazel run //service:server -- --port 50051` and set " +
-        "BRANDO_SERVICE_URL=http://localhost:50051.",
-    );
-  }
-  return target;
+  const explicit = process.env.BRANDO_SERVICE_URL?.trim();
+  if (explicit) return explicit;
+
+  // Deployed, the deterministic tier is a function in THIS project, so the
+  // service's address is the app's own origin. Vercel names it; nothing has to
+  // be configured, which matters because a URL you have to remember to set is a
+  // URL that is wrong in preview.
+  const vercel = process.env.VERCEL_URL?.trim();
+  if (vercel) return `https://${vercel}`;
+
+  throw new Error(
+    "BRANDO_SERVICE_URL is not set and this is not a Vercel deployment. The " +
+      "studio has no deterministic tier without one: contrast, stylesheets and " +
+      "marks all come from brando's service. Either run the gRPC server " +
+      "(`bazel run //service:server -- --port 50051`) with " +
+      "BRANDO_SERVICE_URL=http://localhost:50051 and BRANDO_TRANSPORT=grpc, or " +
+      "run the Connect door (`python -m service.connect_app --port 8787`) with " +
+      "BRANDO_SERVICE_URL=http://localhost:8787.",
+  );
 }
 
 /**
- * gRPC over HTTP/2, against the existing `grpcio` server.
+ * Which wire to use.
  *
- * NOT the Connect protocol, which the Python server does not speak. Connect-ES
- * clients are transport-agnostic, so if outbound HTTP/2 ever turns out to be a
- * problem where this runs, the fix is to put a proxy in front and swap this one
- * function for `createConnectTransport({ httpVersion: "1.1" })` — the generated
- * clients and every tool above them are unchanged.
+ * TWO TRANSPORTS, ONE SERVICE, AND THE CLIENTS DO NOT KNOW THE DIFFERENCE. That
+ * is the property Connect-ES buys: `agent/lib/brand-tools.ts` and every test
+ * above it are written against generated clients, so which of these is in play
+ * is a deployment fact rather than an application one.
+ *
+ * Connect is the default because it is what ships: a stateless function needs no
+ * process with a lifetime, and gRPC needs HTTP/2 to something long-running. gRPC
+ * stays reachable because it is what `bazel run //service:server` speaks, and
+ * what `//service:conformance_test` holds the whole service to.
  */
+export function brandoTransportKind(): "connect" | "grpc" {
+  return process.env.BRANDO_TRANSPORT?.trim() === "grpc" ? "grpc" : "connect";
+}
+
 function transport() {
-  return createGrpcTransport({
-    baseUrl: brandoTarget(),
-    // A brand's full catalog render runs CSG, rasterization at every icon size
-    // and a LaTeX pass. The unary calls the agents make are milliseconds; this
-    // ceiling is for RenderBrand, which is the one that earns it.
-    defaultTimeoutMs: 5 * 60 * 1000,
+  const baseUrl = brandoTarget();
+  // Every call this client makes is one of the five stateless methods, and those
+  // are milliseconds of CSG and string building. A minute is already absurdly
+  // generous.
+  //
+  // It used to be five minutes, which is exactly a serverless platform's own
+  // request ceiling — so the platform would have returned a gateway timeout
+  // first and the client's error would have blamed the wrong thing. A timeout
+  // that fires after the host gives up tells you nothing.
+  const defaultTimeoutMs = 60 * 1000;
+
+  if (brandoTransportKind() === "grpc") {
+    return createGrpcTransport({ baseUrl, defaultTimeoutMs });
+  }
+  return createConnectTransport({
+    baseUrl,
+    // HTTP/1.1 on purpose. The Connect door is an ordinary serverless function,
+    // and requiring HTTP/2 of it would put back the constraint this transport
+    // exists to remove.
+    httpVersion: "1.1",
+    defaultTimeoutMs,
   });
 }
 
