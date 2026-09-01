@@ -3,8 +3,22 @@
 
   "services": {
     "studio": {
-      "root": "studio/",
+      "root": "studio",
       "framework": "nextjs",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "brando",
+          "format": "url",
+          "env": "BRANDO_SERVICE_URL"
+        }
+      ]
+    },
+
+    "eve": {
+      "root": "studio",
+      "framework": "eve",
+      "buildCommand": "eve build",
       "bindings": [
         {
           "type": "service",
@@ -18,12 +32,16 @@
     "brando": {
       "root": ".",
       "runtime": "python3.12",
-      "entrypoint": "wsgi.py",
-      "installCommand": "pip install -r requirements-service.txt"
+      "functions": {
+        "wsgi.py": {
+          "excludeFiles": "studio/**"
+        }
+      }
     }
   },
 
   "rewrites": [
+    { "source": "/eve/v1/(.*)", "destination": { "service": "eve" } },
     { "source": "/(.*)", "destination": { "service": "studio" } }
   ]
 }

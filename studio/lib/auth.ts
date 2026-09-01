@@ -71,6 +71,34 @@ function allowedHosts(): string[] {
  * So the checks still happen, and still fail loudly — on the first request that
  * needs auth, where the answer ("set GITHUB_CLIENT_SECRET") is actionable.
  */
+/**
+ * Who may sign in.
+ *
+ * AUTHENTICATION WITHOUT AUTHORIZATION IS NOT A GATE. Everything else in this
+ * file exists because "this endpoint spends model tokens" — and until this
+ * function existed, the answer to "whose tokens, spent by whom" was: anyone on
+ * GitHub. Proving you have a GitHub account is not a reason to be given a brand
+ * agency.
+ *
+ * Keyed on the GitHub LOGIN rather than the email, because the login is the
+ * identifier GitHub guarantees and the one you would type if asked who should
+ * have access. An unverified or changed email is not an argument here.
+ */
+function allowedLogins(): Set<string> {
+  const configured = process.env.STUDIO_ALLOWED_LOGINS?.trim();
+  const raw = configured && configured.length > 0 ? configured : DEFAULT_ALLOWED_LOGIN;
+  return new Set(raw.split(/[,\s]+/).filter(Boolean).map((login) => login.toLowerCase()));
+}
+
+/**
+ * The repo's owner, as the floor.
+ *
+ * A default of "nobody" would make a missing variable look like a broken
+ * deployment; a default of "everybody" is the hole this closes. The owner is
+ * the one answer that is right when nothing has been configured.
+ */
+const DEFAULT_ALLOWED_LOGIN = "mattmarshall";
+
 function build() {
   return betterAuth({
     baseURL: {
@@ -87,6 +115,26 @@ function build() {
       github: {
         clientId: required("GITHUB_CLIENT_ID"),
         clientSecret: required("GITHUB_CLIENT_SECRET"),
+        /**
+         * The gate, on the one hook that runs every time.
+         *
+         * `mapProfileToUser` is called from the provider's `getUserInfo`, which
+         * is part of the OAuth CALLBACK — so it runs on every sign-in, not only
+         * on the first. A `databaseHooks.user.create.before` would not: this
+         * deployment has no database, so the user table is per-instance and
+         * "create" fires on a schedule nobody controls. Throwing here fails the
+         * callback before a session cookie is ever minted.
+         */
+        mapProfileToUser: (profile: { login?: string }) => {
+          const login = profile.login?.toLowerCase();
+          if (!login || !allowedLogins().has(login)) {
+            throw new Error(
+              `${profile.login ?? "that account"} is not on this studio's allowlist. ` +
+                "Set STUDIO_ALLOWED_LOGINS to a comma-separated list of GitHub logins.",
+            );
+          }
+          return {};
+        },
       },
     },
   });

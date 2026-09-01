@@ -9,9 +9,9 @@ name: studio
 on:
   push:
     branches: [main]
-    paths: ["studio/**", "proto/**", "service/**", "gen/**", "wsgi.py", ".github/workflows/studio.yml"]
+    paths: ["studio/**", "proto/**", "service/**", "gen/**", "wsgi.py", "vercel.json", "requirements.txt", ".github/workflows/studio.yml"]
   pull_request:
-    paths: ["studio/**", "proto/**", "service/**", "gen/**", "wsgi.py", ".github/workflows/studio.yml"]
+    paths: ["studio/**", "proto/**", "service/**", "gen/**", "wsgi.py", "vercel.json", "requirements.txt", ".github/workflows/studio.yml"]
 
 concurrency:
   group: studio-${{ github.ref }}
@@ -34,14 +34,19 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
-      # The contract tests need no service: they hold the zod schemas against
-      # the generated descriptors, which is the half of the twin claim that can
-      # be checked without a server.
-      - run: node --import tsx --test tests/contract.test.ts
+      # The two suites that need no service: the contract tests hold the zod
+      # schemas against the generated descriptors, and the roster test holds the
+      # studio's specialist directory against `agent/subagents/`.
+      - run: node --import tsx --test tests/contract.test.ts tests/roster.test.ts
 
-      # The client tests DO need one, because a mocked transport would prove
-      # only that the mock works. Bazel builds and runs the real service, and
-      # the studio talks to it exactly as it would in production.
+      # The rest DO need one, because a mocked transport would prove only that
+      # the mock works. Bazel builds and runs the real service, and the studio
+      # talks to it exactly as it would in production.
+      #
+      # `npm test` rather than a list of files. Naming them was how
+      # `tests/proto-json.test.ts` — the regression gate for a conversion bug
+      # that made every agent-side `render_mark` fail — came to run nowhere at
+      # all. A glob has nothing to keep in sync.
       - uses: bazel-contrib/setup-bazel@0.9.1
         with:
           bazelisk-cache: true
@@ -56,13 +61,35 @@ jobs:
             sleep 1
           done
           cd studio
-          BRANDO_SERVICE_URL=http://localhost:50051 \
-            node --import tsx --test tests/brando-client.test.ts
+          BRANDO_SERVICE_URL=http://localhost:50051 npm test
 
       # The eve app has to actually compile: `eve build` is what discovers the
       # agent tree, so a subagent with no description or a tool whose filename
       # is not a legal slug fails here rather than at the first request.
       - run: npx eve build
+
+      # THE NEXT BUILD, ON THE BRANCH VERCEL ACTUALLY TAKES.
+      #
+      # `withEve()` runs whenever next.config.ts loads, and it FORKS on whether a
+      # linked Vercel project exists at or above the app: with one, it asserts
+      # that the root vercel.json's `services` include an eve service and throws
+      # if not; without one, it silently writes a generated services block.
+      # A plain `next build` here takes the second branch, so it proved nothing
+      # about the deployment — the root vercel.json shipped for a while with no
+      # eve service, and this build was green the whole time.
+      #
+      # A stub `.vercel/project.json` puts CI on the same branch Vercel is on.
+      # It holds no real ids and is deleted immediately; it exists only to make
+      # `findClosestLinkedVercelDirectory` resolve to the repo root.
+      - name: build Next.js the way Vercel will, with a linked project above it
+        working-directory: .
+        run: |
+          set -eux
+          trap 'rm -rf .vercel' EXIT
+          mkdir -p .vercel
+          echo '{"projectId":"prj_ci_stub","orgId":"team_ci_stub"}' > .vercel/project.json
+          cd studio
+          npm run build
 
   # The generated client, regenerated and diffed. A proto change that nobody
   # regenerated ships a client that disagrees with the server, and the
@@ -124,5 +151,10 @@ jobs:
 
       # The deployed entrypoint must import with no Bazel and no runfiles — which
       # is the whole point of vendoring, and the thing that breaks first.
-      - run: pip install -r requirements-service.txt
+      #
+      # `requirements.txt` is the SERVICE's manifest; the build's lock is
+      # `requirements-bazel.txt`. Vercel resolves a Python manifest by filename
+      # from a fixed list, so the deployed tier owns the plain name — and this
+      # step installs exactly what the deployment will.
+      - run: pip install -r requirements.txt
       - run: python -c "import wsgi; assert callable(wsgi.app)"
