@@ -4,3 +4,4 @@ node_modules/
 .eve/
 *.tsbuildinfo
 .env*.local
+.vercel/

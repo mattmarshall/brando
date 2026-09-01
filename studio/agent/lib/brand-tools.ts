@@ -41,10 +41,9 @@ import {
   themeSchema,
   typographySchema,
   wordmarkSchema,
-  type Theme,
 } from "./brand";
 import { brando } from "./brando/client";
-import { ArtifactKind, BrandSpecSchema, MarkProgramSchema } from "./brando/gen/brando/v1/brand_pb";
+import { ArtifactKind } from "./brando/gen/brando/v1/brand_pb";
 import {
   CheckCatalogRequestSchema,
   CheckContrastRequestSchema,
@@ -52,52 +51,8 @@ import {
   RenderMarkRequestSchema,
   RenderThemeRequestSchema,
 } from "./brando/gen/brando/v1/brand_service_pb";
-import { PaletteSchema, ThemeSchema, TypographySchema } from "./brando/gen/proto/theme_pb";
-
-/**
- * The zod contract's Theme, as the proto's.
- *
- * The palette keys are snake_case in `brand.ts` on purpose: those strings are
- * the ROLE VOCABULARY — the same names `marklib.palette`'s gate table uses and
- * the same ones a MarkProgram's `ThemeColor.role` names — so spelling them
- * camelCase in one place and snake_case in another would mean a specialist had
- * to know which context it was in. protobuf-es wants camelCase, and this
- * function is the single place that knows.
- */
-function toThemeMessage(theme: Theme) {
-  const palette = (p: Theme["light"]) =>
-    create(PaletteSchema, {
-      bg: p.bg, surface: p.surface, fg: p.fg, muted: p.muted, border: p.border,
-      accent: p.accent, accentStrong: p.accent_strong, onAccent: p.on_accent,
-      danger: p.danger, success: p.success, codeBg: p.code_bg, codeFg: p.code_fg,
-      warning: p.warning, info: p.info,
-    });
-  return create(ThemeSchema, {
-    id: theme.id,
-    displayName: theme.displayName,
-    light: palette(theme.light),
-    dark: palette(theme.dark),
-    typography: create(TypographySchema, {
-      sans: theme.typography.sans,
-      mono: theme.typography.mono,
-      display: theme.typography.display ?? "",
-      headingTracking: theme.typography.headingTracking,
-      baseSizePx: theme.typography.baseSizePx,
-      headingWeight: theme.typography.headingWeight,
-      bodyWeight: theme.typography.bodyWeight,
-      fonts: theme.typography.fonts.map((f) => ({
-        $typeName: "meridian.theme.v1.FontSource" as const,
-        family: f.family, srcUri: f.srcUri, weight: f.weight,
-        style: f.style ?? "", unicodeRange: "", display: "",
-      })),
-    }),
-    metrics: {
-      $typeName: "meridian.theme.v1.Metrics" as const,
-      radiusPx: theme.metrics.radiusPx,
-      unitPx: theme.metrics.unitPx,
-    },
-  });
-}
+import { toBrandSpecMessage, toMarkProgramMessage } from "./proto-json";
+import { toThemeMessage } from "./theme-message";
 
 // ── the contrast gate ───────────────────────────────────────────────────────
 const contrastFindingSchema = z.object({
@@ -199,10 +154,7 @@ export function renderMarkTool(agent: string) {
       const { render } = brando();
       const response = await render.renderMark(
         create(RenderMarkRequestSchema, {
-          // The zod shape and the proto shape agree field for field, which is
-          // what `tests/contract.test.ts` is for; `fromJson`-style construction
-          // would silently drop anything that did not.
-          program: create(MarkProgramSchema, program as never),
+          program: toMarkProgramMessage(program),
           theme: toThemeMessage(theme),
         }),
       );
@@ -245,13 +197,11 @@ export function checkCatalogTool(agent: string) {
         ArtifactKind[name.replace("ARTIFACT_KIND_", "") as keyof typeof ArtifactKind];
       const response = await render.checkCatalog(
         create(CheckCatalogRequestSchema, {
-          spec: create(BrandSpecSchema, {
-            catalog: {
-              $typeName: "brando.v1.Catalog",
-              kinds: catalog.kinds.map(kindOf).filter((k) => k !== undefined),
-              custom: [],
-            },
-          }),
+          // The declared kinds go through proto3 JSON, which reads an enum by
+          // name — so `ARTIFACT_KIND_MARK_SVG` is the wire value, not something
+          // this file has to map. `present` is a bare repeated enum on the
+          // request rather than a field of a message, so it still does.
+          spec: toBrandSpecMessage({ catalog: { kinds: catalog.kinds, custom: catalog.custom ?? [] } }),
           present: present.map(kindOf).filter((k) => k !== undefined),
         }),
       );
@@ -280,7 +230,7 @@ export function critiqueSpecTool(agent: string) {
     async execute({ spec }) {
       const { studio } = brando();
       const response = await studio.critiqueSpec(
-        create(CritiqueSpecRequestSchema, { spec: create(BrandSpecSchema, spec as never) }),
+        create(CritiqueSpecRequestSchema, { spec: toBrandSpecMessage(spec) }),
       );
       return {
         critiques: response.critiques.map((c) => ({
