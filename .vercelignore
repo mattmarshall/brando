@@ -1,0 +1,18 @@
+# Vercel does not tree-shake Python: everything reachable at build time ships.
+# The deterministic tier needs `marklib`, `service`, `gen`, `tools` and `wsgi.py`
+# and nothing else in this repo.
+bazel-*
+.git
+studio/node_modules
+studio/.next
+studio/.output
+studio/.eve
+examples/*/out
+gen/out
+mdbook
+doc
+office
+console
+selfbrand
+skins/testdata
+**/*_test.py
