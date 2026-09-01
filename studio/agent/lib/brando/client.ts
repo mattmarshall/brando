@@ -33,21 +33,26 @@ export function brandoTarget(): string {
   const explicit = process.env.BRANDO_SERVICE_URL?.trim();
   if (explicit) return explicit;
 
-  // Deployed, the deterministic tier is a function in THIS project, so the
-  // service's address is the app's own origin. Vercel names it; nothing has to
-  // be configured, which matters because a URL you have to remember to set is a
-  // URL that is wrong in preview.
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel) return `https://${vercel}`;
-
+  // THERE IS NO VERCEL_URL FALLBACK, and its absence is the point.
+  //
+  // Deployed, `BRANDO_SERVICE_URL` is injected by a service BINDING, and a
+  // binding is declared by the CALLER — so it exists in a service only if that
+  // service's entry in `vercel.json` asks for it. This code runs in two of them:
+  // the Next app (for `/api/marks`) and the eve agent (for every tool). Falling
+  // back to the deployment's own origin turned a missing binding into a request
+  // that goes out to the public internet, gets held by Deployment Protection,
+  // and — if it got through — would be handed by the catch-all rewrite to
+  // Next.js, which serves no `/brando.v1.*` path. A 404 from the wrong server,
+  // where the honest answer is "this service has no binding".
   throw new Error(
-    "BRANDO_SERVICE_URL is not set and this is not a Vercel deployment. The " +
-      "studio has no deterministic tier without one: contrast, stylesheets and " +
-      "marks all come from brando's service. Either run the gRPC server " +
+    "BRANDO_SERVICE_URL is not set. Deployed, it comes from the `brando` " +
+      "service binding, which every calling service must declare in vercel.json — " +
+      "if this is a deployment, the service you are running in is missing its " +
+      "`bindings` entry. Locally, run the Connect door " +
+      "(`python -m service.connect_app --port 8787`) with " +
+      "BRANDO_SERVICE_URL=http://localhost:8787, or the gRPC server " +
       "(`bazel run //service:server -- --port 50051`) with " +
-      "BRANDO_SERVICE_URL=http://localhost:50051 and BRANDO_TRANSPORT=grpc, or " +
-      "run the Connect door (`python -m service.connect_app --port 8787`) with " +
-      "BRANDO_SERVICE_URL=http://localhost:8787.",
+      "BRANDO_SERVICE_URL=http://localhost:50051 and BRANDO_TRANSPORT=grpc.",
   );
 }
 

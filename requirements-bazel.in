@@ -1,3 +1,8 @@
+# What the BAZEL BUILD needs to produce a full brand: rasterization, fonts,
+# office documents, stub generation. Not what the deployed service needs —
+# that is `requirements.txt`, which owns the plain name because Vercel
+# resolves manifests by filename and Bazel resolves this one by path
+# (`MODULE.bazel`, `requirements_lock`).
 shapely
 svgwrite
 pillow
