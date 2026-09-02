@@ -163,10 +163,10 @@ export const shapeFormSchema = z.union([
       taper: exprSchema.optional(),
     }),
   }),
-  z.object({ unionOf: z.object({ shapes: z.array(z.string().min(1)).min(1) }) }),
-  z.object({ intersectionOf: z.object({ shapes: z.array(z.string().min(1)).min(2) }) }),
+  z.object({ combine: z.object({ shapes: z.array(z.string().min(1)).min(1) }) }),
+  z.object({ intersect: z.object({ shapes: z.array(z.string().min(1)).min(2) }) }),
   z.object({
-    differenceOf: z.object({
+    difference: z.object({
       base: z.string().min(1),
       subtract: z.array(z.string().min(1)).min(1),
     }),
@@ -225,7 +225,7 @@ export const markShapeSchema: z.ZodType<MarkShape> = z.lazy(() =>
         repeat: z.object({
           count: exprSchema.optional(),
           /** A table parameter to walk, instead of a counter. */
-          over: z.string().min(1).optional(),
+          table: z.string().min(1).optional(),
           indexVar: z.string().min(1).optional(),
           separate: z.boolean().optional(),
           body: markShapeSchema.or(shapeFormSchema),
@@ -281,7 +281,7 @@ export const markProgramSchema = z.object({
   variants: z.array(variantDefSchema).min(1),
   fit: z
     .object({
-      boundsOf: z.string().min(1).optional(),
+      bounds: z.string().min(1).optional(),
       halfExtent: exprSchema.optional(),
       scale: exprSchema.optional(),
       pad: exprSchema.optional(),
@@ -289,8 +289,8 @@ export const markProgramSchema = z.object({
       noFlipY: z.boolean().optional(),
     })
     .refine(
-      (fit) => [fit.boundsOf, fit.halfExtent, fit.scale].filter(Boolean).length === 1,
-      "give exactly one of boundsOf / halfExtent / scale, as marklib.fit requires",
+      (fit) => [fit.bounds, fit.halfExtent, fit.scale].filter(Boolean).length === 1,
+      "give exactly one of bounds / halfExtent / scale, as marklib.fit requires",
     ),
   canvas: z.number().int().min(64).max(4096).optional(),
   bgRound: exprSchema.optional(),

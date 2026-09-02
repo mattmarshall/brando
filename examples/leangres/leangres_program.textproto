@@ -49,7 +49,7 @@ shapes {
 }
 shapes {
   name: "turnstile"
-  union_of { shapes: "stem" shapes: "bar" }
+  combine { shapes: "stem" shapes: "bar" }
 }
 
 # ∎ — the filled square that ends a proof. Flat geometry, no curve to lose.
@@ -65,11 +65,11 @@ shapes {
 
 shapes {
   name: "whole"
-  union_of { shapes: "turnstile" shapes: "halmos" }
+  combine { shapes: "turnstile" shapes: "halmos" }
 }
 
 fit {
-  bounds_of: "whole"
+  bounds: "whole"
   pad: "(1 - fit_frac) / 2"
 }
 

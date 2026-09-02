@@ -53,7 +53,7 @@ function markProgram() {
     params: [create(ParamSchema, { name: "w", form: { case: "value", value: "10" } })],
     shapes: [rect("0", "0", "w", "w")],
     fit: create(FitDefSchema, {
-      extent: { case: "boundsOf", value: "body" },
+      extent: { case: "bounds", value: "body" },
       pad: "0.1",
     }),
     layers: [create(LayerDefSchema, {

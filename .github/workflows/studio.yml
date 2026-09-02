@@ -51,6 +51,18 @@ jobs:
         with:
           bazelisk-cache: true
           repository-cache: true
+      # BUILD FIRST, THEN RUN. `bazel run` builds before it serves, and on a
+      # cold cache that build compiles protobuf and gRPC from source — five
+      # minutes of it. The wait loop below then spent its whole 60 seconds
+      # watching a port that nothing had got round to binding yet, and every
+      # test failed with ECONNREFUSED against a server that was fine.
+      #
+      # Splitting the build out also puts a build failure in a step that says
+      # "build", instead of surfacing as a connection error two steps later.
+      - name: build the service before waiting on it
+        working-directory: .
+        run: bazel build //service:server
+
       - name: serve brando, then round-trip the client against it
         working-directory: .
         run: |
@@ -60,6 +72,10 @@ jobs:
             (echo > /dev/tcp/127.0.0.1/50051) 2>/dev/null && break
             sleep 1
           done
+          # Fail HERE, naming the reason, rather than in a test whose error is
+          # ECONNREFUSED and whose cause is somewhere else entirely.
+          (echo > /dev/tcp/127.0.0.1/50051) 2>/dev/null \
+            || { echo "the service never bound :50051"; exit 1; }
           cd studio
           BRANDO_SERVICE_URL=http://localhost:50051 npm test
 
@@ -139,6 +155,11 @@ jobs:
           python-version: "3.12"
       - run: pip install grpcio-tools protobuf
       - name: regenerate from the descriptor set the linter checked
+        # `defaults.run.working-directory` is `studio` for this whole file, which
+        # is right for every npm step and wrong for every Bazel one — without
+        # this the job ran `python service/gen_stubs.py` from inside studio/ and
+        # died on "No such file or directory".
+        working-directory: .
         run: |
           set -eux
           bazel build //proto/brando/v1:brand_service_descriptor_set
@@ -147,7 +168,9 @@ jobs:
               --descriptor_set bazel-bin/proto/brando/v1/brand_service_descriptor_set.binpb \
               --out_dir gen --proto "$proto"
           done
-      - run: git diff --exit-code gen
+      - name: the vendored stubs match the schema
+        working-directory: .
+        run: git diff --exit-code gen
 
       # The deployed entrypoint must import with no Bazel and no runfiles — which
       # is the whole point of vendoring, and the thing that breaks first.

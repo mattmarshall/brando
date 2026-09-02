@@ -238,11 +238,14 @@ message Shape {
     RoundedRect rounded_rect = 6;
     Polyline polyline = 7;
 
-    // Boolean operations. Named `*_of` because `union` is a reserved word in
-    // several languages generated bindings target.
-    Combine union_of = 8;
-    Combine intersection_of = 9;
-    Difference difference_of = 10;
+    // Boolean operations. `union` is a reserved word in several languages
+    // generated bindings target, so the union is `combine`; AIP-140 rules out
+    // the `*_of` spelling these three carried first, and the linter is right —
+    // `difference { base: ... subtract: ... }` reads better than
+    // `difference_of` ever did.
+    Combine combine = 8;
+    Combine intersect = 9;
+    Difference difference = 10;
 
     // `distance: "0"` is the standard shapely self-intersection repair, which
     // every generator in this repo relies on.
@@ -368,7 +371,7 @@ message Scale {
 // nothing else new; positions are closed-form functions of `i` rather than a
 // running total, which is how they stay solvable in one pass.
 message Repeat {
-  // The number of instances. Ignored when `over` names a table, whose row count
+  // The number of instances. Ignored when `table` names one, whose row count
   // decides instead.
   string count = 1;
   // Defaults to "i".
@@ -377,7 +380,7 @@ message Repeat {
   // A table parameter to walk. Each row is bound as `row`, addressed `row[j]`,
   // which is how a per-instance table of hand-tuned values -- brando's own
   // `fingers` -- drives the body without becoming a formula it is not.
-  string over = 5;
+  string table = 5;
   // Instances are unioned by default. Set to keep them separate -- a fan whose
   // blades alternate tone needs the pieces, not the union.
   bool separate = 4;
@@ -489,7 +492,7 @@ message FitDef {
   oneof extent {
     // Fit to the bounds of this shape -- the usual case, where the geometry
     // decides the frame.
-    string bounds_of = 1;
+    string bounds = 1;
     // Half the model-space width the mark should occupy.
     string half_extent = 2;
     // An explicit pixels-per-model-unit.
@@ -500,7 +503,7 @@ message FitDef {
   string pad = 4;
 
   // The model point that lands at the canvas centre. The bounds' centre in
-  // `bounds_of` mode, the origin otherwise.
+  // `bounds` mode, the origin otherwise.
   Point center = 5;
 
   // marklib flips y by default, because these model spaces are y-up and pixels

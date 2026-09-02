@@ -53,7 +53,7 @@ def _spec_with_program(brand_id="p"):
     shape.rect.y0 = "0"
     shape.rect.x1 = "w"
     shape.rect.y1 = "w"
-    program.fit.bounds_of = "body"
+    program.fit.bounds = "body"
     program.fit.pad = "0.1"
     layer = program.layers.add(name="body", shape="body")
     layer.fill.light.theme.mode = "light"
