@@ -76,6 +76,21 @@ aip_proto_lint(
         # makes a 500-line API file readable; hoisting five service blocks to the
         # top would separate every method from its own types.
         "core::0191::file-layout",
+        # AIP-215 discourages referencing a type from another package. The same
+        # waiver brand.proto carries, and for the same reason: reusing
+        # `meridian.theme.v1.Theme` rather than redeclaring it is the central
+        # design decision of this schema. CheckContrast, RenderTheme and
+        # RenderMark all take a Theme that is not part of a stored brand, so
+        # this file names the foreign type directly rather than inheriting it.
+        "core::0215::foreign-type-reference",
+        # AIP-123 wants a `google.api.resource` annotation on anything that looks
+        # like a resource. `RenderedFile` is not one -- it is a value carried
+        # INSIDE a response, and the comment above it explains why: a layered SVG
+        # set is a few kilobytes produced in milliseconds and usually thrown
+        # away, so storing it and handing back a name would be ceremony around a
+        # value that fits in the response. Annotating it would declare a
+        # resource with no collection, no name, and no Get.
+        "core::0123::resource-annotation",
     ],
 )
 

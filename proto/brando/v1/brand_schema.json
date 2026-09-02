@@ -257,7 +257,7 @@
       }
     },
     "brando.v1.FitDef": {
-      "bounds_of": {
+      "bounds": {
         "kind": "string",
         "repeated": false
       },
@@ -625,12 +625,12 @@
         "kind": "string",
         "repeated": false
       },
-      "over": {
-        "kind": "string",
-        "repeated": false
-      },
       "separate": {
         "kind": "bool",
+        "repeated": false
+      },
+      "table": {
+        "kind": "string",
         "repeated": false
       }
     },
@@ -705,12 +705,17 @@
         "repeated": false,
         "type": "brando.v1.Circle"
       },
-      "difference_of": {
+      "combine": {
+        "kind": "message",
+        "repeated": false,
+        "type": "brando.v1.Combine"
+      },
+      "difference": {
         "kind": "message",
         "repeated": false,
         "type": "brando.v1.Difference"
       },
-      "intersection_of": {
+      "intersect": {
         "kind": "message",
         "repeated": false,
         "type": "brando.v1.Combine"
@@ -763,11 +768,6 @@
         "kind": "message",
         "repeated": false,
         "type": "brando.v1.Translate"
-      },
-      "union_of": {
-        "kind": "message",
-        "repeated": false,
-        "type": "brando.v1.Combine"
       }
     },
     "brando.v1.ThemeColor": {

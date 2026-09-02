@@ -31,7 +31,7 @@ def _program(**overrides):
         "canvas": 64,
         "params": [{"name": "size", "value": "10"}],
         "shapes": [_square()],
-        "fit": {"bounds_of": "sq", "pad": "0.1"},
+        "fit": {"bounds": "sq", "pad": "0.1"},
         "layers": [{"name": "body", "shape": "sq",
                     "fill": {"light": {"literal": "#123456"},
                              "dark": {"literal": "#654321"}}}],
@@ -81,7 +81,7 @@ class ShapeTest(unittest.TestCase):
     def test_an_unknown_shape_reference_lists_the_names_that_exist(self):
         with self.assertRaises(program.ProgramError) as caught:
             self._shapes([_square("a"),
-                          {"name": "b", "union_of": {"shapes": ["a", "nope"]}}])
+                          {"name": "b", "combine": {"shapes": ["a", "nope"]}}])
         self.assertIn("'nope'", str(caught.exception))
         self.assertIn("a", str(caught.exception))
 
@@ -99,7 +99,7 @@ class ShapeTest(unittest.TestCase):
         shapes = self._shapes([
             _square("outer", "0", "0", "10", "10"),
             _square("bite", "0", "0", "5", "10"),
-            {"name": "rest", "difference_of": {"base": "outer", "subtract": ["bite"]}},
+            {"name": "rest", "difference": {"base": "outer", "subtract": ["bite"]}},
         ])
         self.assertAlmostEqual(50.0, shapes.get("rest").area)
 
@@ -130,7 +130,7 @@ class ShapeTest(unittest.TestCase):
         """
         shapes = self._shapes(
             [{"name": "bars", "repeat": {
-                "over": "rows",
+                "table": "rows",
                 "body": {"rect": {"x0": "row[0]", "y0": "0",
                                   "x1": "row[0] + row[1]", "y1": "1"}}}}],
             params=[{"name": "rows", "table": {
@@ -140,7 +140,7 @@ class ShapeTest(unittest.TestCase):
     def test_repeat_over_a_scalar_is_refused(self):
         with self.assertRaises(program.ProgramError):
             self._shapes([{"name": "bars", "repeat": {
-                "over": "n", "body": {"rect": {"x0": "0", "y0": "0",
+                "table": "n", "body": {"rect": {"x0": "0", "y0": "0",
                                                "x1": "1", "y1": "1"}}}}],
                          params=[{"name": "n", "value": "3"}])
 
@@ -272,7 +272,7 @@ class CanvasTest(unittest.TestCase):
 
     def test_fit_delegates_its_exactly_one_of_rule_to_marklib(self):
         """A second copy of that rule is a second place for it to be wrong."""
-        prog = _program(fit={"bounds_of": "sq", "half_extent": "5"})
+        prog = _program(fit={"bounds": "sq", "half_extent": "5"})
         with self.assertRaises(ValueError):
             program.canvas_for(prog, "flat")
 

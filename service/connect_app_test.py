@@ -30,7 +30,7 @@ _PROGRAM = {
     "canvas": 64,
     "params": [{"name": "w", "value": "10"}],
     "shapes": [{"name": "body", "rect": {"x0": "0", "y0": "0", "x1": "w", "y1": "w"}}],
-    "fit": {"boundsOf": "body", "pad": "0.1"},
+    "fit": {"bounds": "body", "pad": "0.1"},
     "layers": [{"name": "body", "shape": "body",
                 "fill": {"light": {"theme": {"mode": "light", "role": "fg"}}}}],
     "variants": [{"name": "flat", "mode": "light"}],

@@ -89,11 +89,11 @@ shapes {
 
 shapes {
   name: "whole"
-  union_of { shapes: "entablature" shapes: "stylobate" shapes: "columns" }
+  combine { shapes: "entablature" shapes: "stylobate" shapes: "columns" }
 }
 
 fit {
-  bounds_of: "whole"
+  bounds: "whole"
   pad: "(1 - fit_frac) / 2"
 }
 

@@ -28,9 +28,9 @@ function authoredProgram(): MarkProgram {
     shapes: [
       { name: "body", rect: { x0: "0", y0: "0", x1: "w", y1: "w" } },
       { name: "hole", circle: { cx: "w / 2", cy: "w / 2", r: "w / 4" } },
-      { name: "ring", differenceOf: { base: "body", subtract: ["hole"] } },
+      { name: "ring", difference: { base: "body", subtract: ["hole"] } },
     ],
-    fit: { boundsOf: "ring", pad: "0.1" },
+    fit: { bounds: "ring", pad: "0.1" },
     layers: [
       {
         name: "ring",
@@ -55,8 +55,8 @@ test("a oneof authored as a plain field survives the conversion", () => {
   assert.equal(message.params[1]?.form.case, "table");
 
   assert.equal(message.shapes[0]?.form.case, "rect");
-  assert.equal(message.shapes[2]?.form.case, "differenceOf");
-  assert.equal(message.fit?.extent.case, "boundsOf");
+  assert.equal(message.shapes[2]?.form.case, "difference");
+  assert.equal(message.fit?.extent.case, "bounds");
 });
 
 test("a colour reference and a literal are different members, not the same one", () => {

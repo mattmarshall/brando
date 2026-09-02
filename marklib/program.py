@@ -301,18 +301,18 @@ def _repeat(shape: dict, node: dict, env, shapes: _Shapes):
     off-centre; `repeat` is what lets that stay solved instead of becoming four
     hand-placed boxes the moment it is written down as data.
 
-    `over` walks a TABLE rather than a counter, for the values that genuinely are
+    `table` walks a TABLE rather than a counter, for the values that genuinely are
     tabulated — brando's own four fingers, each with its own knuckle, reach and
     curl. Those are not a formula and pretending otherwise would mean losing the
     tuning.
     """
     index_var = _get(node, "index_var") or "i"
-    over = _get(node, "over")
+    table = _get(node, "table")
 
-    if over:
-        rows = env.values.get(over)
+    if table:
+        rows = env.values.get(table)
         if not isinstance(rows, list) or not all(isinstance(r, list) for r in rows):
-            raise ProgramError("repeat over %r: not a table parameter" % over)
+            raise ProgramError("repeat table %r: not a table parameter" % table)
         count = len(rows)
     else:
         rows = None
@@ -351,9 +351,9 @@ _PRIMITIVES = {
     "circle": lambda node, env, shapes: _circle(node, env),
     "rounded_rect": lambda node, env, shapes: _rounded_rect(node, env),
     "polyline": lambda node, env, shapes: _polyline(node, env),
-    "union_of": lambda node, env, shapes: _combine(node, env, shapes, "union"),
-    "intersection_of": lambda node, env, shapes: _combine(node, env, shapes, "intersection"),
-    "difference_of": lambda node, env, shapes: _difference(node, env, shapes),
+    "combine": lambda node, env, shapes: _combine(node, env, shapes, "union"),
+    "intersect": lambda node, env, shapes: _combine(node, env, shapes, "intersection"),
+    "difference": lambda node, env, shapes: _difference(node, env, shapes),
     "buffer": _buffer,
     "rotate": _rotate,
     "translate": _translate,
@@ -484,13 +484,13 @@ def _transform(program: dict, shapes: _Shapes, env, canvas: int):
     node = _get(program, "fit") or {}
     kwargs = {}
 
-    bounds_of = _get(node, "bounds_of")
+    bounds = _get(node, "bounds")
     half_extent = _get(node, "half_extent")
     scale = _get(node, "scale")
-    if bounds_of:
-        geom = shapes.get(bounds_of)
+    if bounds:
+        geom = shapes.get(bounds)
         if geom.is_empty:
-            raise ProgramError("fit.bounds_of names %r, which is empty" % bounds_of)
+            raise ProgramError("fit.bounds names %r, which is empty" % bounds)
         kwargs["bounds"] = geom.bounds
     if half_extent:
         kwargs["half_extent"] = _expr.evaluate(half_extent, env)

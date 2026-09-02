@@ -95,7 +95,7 @@ class ThemeSchema(unittest.TestCase):
             # brand whose mark stops parsing rather than one that renders wrong.
             shape = messages["brando.v1.Shape"]
             for form in ("rect", "poly", "ngon", "circle", "rounded_rect", "polyline",
-                         "union_of", "intersection_of", "difference_of", "buffer",
+                         "combine", "intersect", "difference", "buffer",
                          "rotate", "translate", "scale", "repeat"):
                 self.assertIn(form, shape, "Shape lost its %r form" % form)
 
