@@ -10,7 +10,84 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto/theme.proto.
  */
 export const file_proto_theme: GenFile = /*@__PURE__*/
-  fileDesc("ChFwcm90by90aGVtZS5wcm90bxIRbWVyaWRpYW4udGhlbWUudjEi7QEKB1BhbGV0dGUSCgoCYmcYASABKAkSDwoHc3VyZmFjZRgCIAEoCRIKCgJmZxgDIAEoCRINCgVtdXRlZBgEIAEoCRIOCgZib3JkZXIYBSABKAkSDgoGYWNjZW50GAYgASgJEhUKDWFjY2VudF9zdHJvbmcYByABKAkSEQoJb25fYWNjZW50GAggASgJEg4KBmRhbmdlchgJIAEoCRIPCgdzdWNjZXNzGAogASgJEg8KB2NvZGVfYmcYCyABKAkSDwoHY29kZV9mZxgMIAEoCRIPCgd3YXJuaW5nGA0gASgJEgwKBGluZm8YDiABKAkidAoKRm9udFNvdXJjZRIOCgZmYW1pbHkYASABKAkSDwoHc3JjX3VyaRgCIAEoCRIOCgZ3ZWlnaHQYAyABKAkSDQoFc3R5bGUYBCABKAkSFQoNdW5pY29kZV9yYW5nZRgFIAEoCRIPCgdkaXNwbGF5GAYgASgJIsQBCgpUeXBvZ3JhcGh5EgwKBHNhbnMYASABKAkSDAoEbW9ubxgCIAEoCRIUCgxiYXNlX3NpemVfcHgYAyABKAESFgoOaGVhZGluZ193ZWlnaHQYBCABKAESEwoLYm9keV93ZWlnaHQYBSABKAESGAoQaGVhZGluZ190cmFja2luZxgGIAEoCRIPCgdkaXNwbGF5GAcgASgJEiwKBWZvbnRzGAggAygLMh0ubWVyaWRpYW4udGhlbWUudjEuRm9udFNvdXJjZSItCgdNZXRyaWNzEhEKCXJhZGl1c19weBgBIAEoARIPCgd1bml0X3B4GAIgASgBIt4BCgVUaGVtZRIKCgJpZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoFbGlnaHQYAyABKAsyGi5tZXJpZGlhbi50aGVtZS52MS5QYWxldHRlEigKBGRhcmsYBCABKAsyGi5tZXJpZGlhbi50aGVtZS52MS5QYWxldHRlEjEKCnR5cG9ncmFwaHkYBSABKAsyHS5tZXJpZGlhbi50aGVtZS52MS5UeXBvZ3JhcGh5EisKB21ldHJpY3MYBiABKAsyGi5tZXJpZGlhbi50aGVtZS52MS5NZXRyaWNzQokBChVjb20ubWVyaWRpYW4udGhlbWUudjFCClRoZW1lUHJvdG9QAaICA01UWKoCEU1lcmlkaWFuLlRoZW1lLlYxygIRTWVyaWRpYW5cVGhlbWVcVjHiAh1NZXJpZGlhblxUaGVtZVxWMVxHUEJNZXRhZGF0YeoCE01lcmlkaWFuOjpUaGVtZTo6VjFiBnByb3RvMw");
+  fileDesc("ChFwcm90by90aGVtZS5wcm90bxIRbWVyaWRpYW4udGhlbWUudjEi3gEKBVRoZW1lEgoKAmlkGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIpCgVsaWdodBgDIAEoCzIaLm1lcmlkaWFuLnRoZW1lLnYxLlBhbGV0dGUSKAoEZGFyaxgEIAEoCzIaLm1lcmlkaWFuLnRoZW1lLnYxLlBhbGV0dGUSMQoKdHlwb2dyYXBoeRgFIAEoCzIdLm1lcmlkaWFuLnRoZW1lLnYxLlR5cG9ncmFwaHkSKwoHbWV0cmljcxgGIAEoCzIaLm1lcmlkaWFuLnRoZW1lLnYxLk1ldHJpY3Mi7QEKB1BhbGV0dGUSCgoCYmcYASABKAkSDwoHc3VyZmFjZRgCIAEoCRIKCgJmZxgDIAEoCRINCgVtdXRlZBgEIAEoCRIOCgZib3JkZXIYBSABKAkSDgoGYWNjZW50GAYgASgJEhUKDWFjY2VudF9zdHJvbmcYByABKAkSEQoJb25fYWNjZW50GAggASgJEg4KBmRhbmdlchgJIAEoCRIPCgdzdWNjZXNzGAogASgJEg8KB2NvZGVfYmcYCyABKAkSDwoHY29kZV9mZxgMIAEoCRIPCgd3YXJuaW5nGA0gASgJEgwKBGluZm8YDiABKAkixAEKClR5cG9ncmFwaHkSDAoEc2FucxgBIAEoCRIMCgRtb25vGAIgASgJEhQKDGJhc2Vfc2l6ZV9weBgDIAEoDRIWCg5oZWFkaW5nX3dlaWdodBgEIAEoDRITCgtib2R5X3dlaWdodBgFIAEoDRIYChBoZWFkaW5nX3RyYWNraW5nGAYgASgJEg8KB2Rpc3BsYXkYByABKAkSLAoFZm9udHMYCCADKAsyHS5tZXJpZGlhbi50aGVtZS52MS5Gb250U291cmNlInQKCkZvbnRTb3VyY2USDgoGZmFtaWx5GAEgASgJEg8KB3NyY191cmkYAiABKAkSDgoGd2VpZ2h0GAMgASgJEg0KBXN0eWxlGAQgASgJEhUKDXVuaWNvZGVfcmFuZ2UYBSABKAkSDwoHZGlzcGxheRgGIAEoCSItCgdNZXRyaWNzEhEKCXJhZGl1c19weBgBIAEoDRIPCgd1bml0X3B4GAIgASgNQokBChVjb20ubWVyaWRpYW4udGhlbWUudjFCClRoZW1lUHJvdG9QAaICA01UWKoCEU1lcmlkaWFuLlRoZW1lLlYxygIRTWVyaWRpYW5cVGhlbWVcVjHiAh1NZXJpZGlhblxUaGVtZVxWMVxHUEJNZXRhZGF0YeoCE01lcmlkaWFuOjpUaGVtZTo6VjFiBnByb3RvMw");
+
+/**
+ * @generated from message meridian.theme.v1.Theme
+ */
+export type Theme = Message<"meridian.theme.v1.Theme"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string display_name = 2;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: meridian.theme.v1.Palette light = 3;
+   */
+  light?: Palette | undefined;
+
+  /**
+   * @generated from field: meridian.theme.v1.Palette dark = 4;
+   */
+  dark?: Palette | undefined;
+
+  /**
+   * @generated from field: meridian.theme.v1.Typography typography = 5;
+   */
+  typography?: Typography | undefined;
+
+  /**
+   * @generated from field: meridian.theme.v1.Metrics metrics = 6;
+   */
+  metrics?: Metrics | undefined;
+};
+
+/**
+ * @generated from message meridian.theme.v1.Theme
+ */
+export type ThemeJson = {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: string display_name = 2;
+   */
+  displayName?: string;
+
+  /**
+   * @generated from field: meridian.theme.v1.Palette light = 3;
+   */
+  light?: PaletteJson;
+
+  /**
+   * @generated from field: meridian.theme.v1.Palette dark = 4;
+   */
+  dark?: PaletteJson;
+
+  /**
+   * @generated from field: meridian.theme.v1.Typography typography = 5;
+   */
+  typography?: TypographyJson;
+
+  /**
+   * @generated from field: meridian.theme.v1.Metrics metrics = 6;
+   */
+  metrics?: MetricsJson;
+};
+
+/**
+ * Describes the message meridian.theme.v1.Theme.
+ * Use `create(ThemeSchema)` to create a new message.
+ */
+export const ThemeSchema: GenMessage<Theme, {jsonType: ThemeJson}> = /*@__PURE__*/
+  messageDesc(file_proto_theme, 0);
 
 /**
  * @generated from message meridian.theme.v1.Palette
@@ -167,7 +244,104 @@ export type PaletteJson = {
  * Use `create(PaletteSchema)` to create a new message.
  */
 export const PaletteSchema: GenMessage<Palette, {jsonType: PaletteJson}> = /*@__PURE__*/
-  messageDesc(file_proto_theme, 0);
+  messageDesc(file_proto_theme, 1);
+
+/**
+ * @generated from message meridian.theme.v1.Typography
+ */
+export type Typography = Message<"meridian.theme.v1.Typography"> & {
+  /**
+   * @generated from field: string sans = 1;
+   */
+  sans: string;
+
+  /**
+   * @generated from field: string mono = 2;
+   */
+  mono: string;
+
+  /**
+   * @generated from field: uint32 base_size_px = 3;
+   */
+  baseSizePx: number;
+
+  /**
+   * @generated from field: uint32 heading_weight = 4;
+   */
+  headingWeight: number;
+
+  /**
+   * @generated from field: uint32 body_weight = 5;
+   */
+  bodyWeight: number;
+
+  /**
+   * @generated from field: string heading_tracking = 6;
+   */
+  headingTracking: string;
+
+  /**
+   * @generated from field: string display = 7;
+   */
+  display: string;
+
+  /**
+   * @generated from field: repeated meridian.theme.v1.FontSource fonts = 8;
+   */
+  fonts: FontSource[];
+};
+
+/**
+ * @generated from message meridian.theme.v1.Typography
+ */
+export type TypographyJson = {
+  /**
+   * @generated from field: string sans = 1;
+   */
+  sans?: string;
+
+  /**
+   * @generated from field: string mono = 2;
+   */
+  mono?: string;
+
+  /**
+   * @generated from field: uint32 base_size_px = 3;
+   */
+  baseSizePx?: number;
+
+  /**
+   * @generated from field: uint32 heading_weight = 4;
+   */
+  headingWeight?: number;
+
+  /**
+   * @generated from field: uint32 body_weight = 5;
+   */
+  bodyWeight?: number;
+
+  /**
+   * @generated from field: string heading_tracking = 6;
+   */
+  headingTracking?: string;
+
+  /**
+   * @generated from field: string display = 7;
+   */
+  display?: string;
+
+  /**
+   * @generated from field: repeated meridian.theme.v1.FontSource fonts = 8;
+   */
+  fonts?: FontSourceJson[];
+};
+
+/**
+ * Describes the message meridian.theme.v1.Typography.
+ * Use `create(TypographySchema)` to create a new message.
+ */
+export const TypographySchema: GenMessage<Typography, {jsonType: TypographyJson}> = /*@__PURE__*/
+  messageDesc(file_proto_theme, 2);
 
 /**
  * @generated from message meridian.theme.v1.FontSource
@@ -244,116 +418,19 @@ export type FontSourceJson = {
  * Use `create(FontSourceSchema)` to create a new message.
  */
 export const FontSourceSchema: GenMessage<FontSource, {jsonType: FontSourceJson}> = /*@__PURE__*/
-  messageDesc(file_proto_theme, 1);
-
-/**
- * @generated from message meridian.theme.v1.Typography
- */
-export type Typography = Message<"meridian.theme.v1.Typography"> & {
-  /**
-   * @generated from field: string sans = 1;
-   */
-  sans: string;
-
-  /**
-   * @generated from field: string mono = 2;
-   */
-  mono: string;
-
-  /**
-   * @generated from field: double base_size_px = 3;
-   */
-  baseSizePx: number;
-
-  /**
-   * @generated from field: double heading_weight = 4;
-   */
-  headingWeight: number;
-
-  /**
-   * @generated from field: double body_weight = 5;
-   */
-  bodyWeight: number;
-
-  /**
-   * @generated from field: string heading_tracking = 6;
-   */
-  headingTracking: string;
-
-  /**
-   * @generated from field: string display = 7;
-   */
-  display: string;
-
-  /**
-   * @generated from field: repeated meridian.theme.v1.FontSource fonts = 8;
-   */
-  fonts: FontSource[];
-};
-
-/**
- * @generated from message meridian.theme.v1.Typography
- */
-export type TypographyJson = {
-  /**
-   * @generated from field: string sans = 1;
-   */
-  sans?: string;
-
-  /**
-   * @generated from field: string mono = 2;
-   */
-  mono?: string;
-
-  /**
-   * @generated from field: double base_size_px = 3;
-   */
-  baseSizePx?: number | "NaN" | "Infinity" | "-Infinity";
-
-  /**
-   * @generated from field: double heading_weight = 4;
-   */
-  headingWeight?: number | "NaN" | "Infinity" | "-Infinity";
-
-  /**
-   * @generated from field: double body_weight = 5;
-   */
-  bodyWeight?: number | "NaN" | "Infinity" | "-Infinity";
-
-  /**
-   * @generated from field: string heading_tracking = 6;
-   */
-  headingTracking?: string;
-
-  /**
-   * @generated from field: string display = 7;
-   */
-  display?: string;
-
-  /**
-   * @generated from field: repeated meridian.theme.v1.FontSource fonts = 8;
-   */
-  fonts?: FontSourceJson[];
-};
-
-/**
- * Describes the message meridian.theme.v1.Typography.
- * Use `create(TypographySchema)` to create a new message.
- */
-export const TypographySchema: GenMessage<Typography, {jsonType: TypographyJson}> = /*@__PURE__*/
-  messageDesc(file_proto_theme, 2);
+  messageDesc(file_proto_theme, 3);
 
 /**
  * @generated from message meridian.theme.v1.Metrics
  */
 export type Metrics = Message<"meridian.theme.v1.Metrics"> & {
   /**
-   * @generated from field: double radius_px = 1;
+   * @generated from field: uint32 radius_px = 1;
    */
   radiusPx: number;
 
   /**
-   * @generated from field: double unit_px = 2;
+   * @generated from field: uint32 unit_px = 2;
    */
   unitPx: number;
 };
@@ -363,14 +440,14 @@ export type Metrics = Message<"meridian.theme.v1.Metrics"> & {
  */
 export type MetricsJson = {
   /**
-   * @generated from field: double radius_px = 1;
+   * @generated from field: uint32 radius_px = 1;
    */
-  radiusPx?: number | "NaN" | "Infinity" | "-Infinity";
+  radiusPx?: number;
 
   /**
-   * @generated from field: double unit_px = 2;
+   * @generated from field: uint32 unit_px = 2;
    */
-  unitPx?: number | "NaN" | "Infinity" | "-Infinity";
+  unitPx?: number;
 };
 
 /**
@@ -378,82 +455,5 @@ export type MetricsJson = {
  * Use `create(MetricsSchema)` to create a new message.
  */
 export const MetricsSchema: GenMessage<Metrics, {jsonType: MetricsJson}> = /*@__PURE__*/
-  messageDesc(file_proto_theme, 3);
-
-/**
- * @generated from message meridian.theme.v1.Theme
- */
-export type Theme = Message<"meridian.theme.v1.Theme"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string display_name = 2;
-   */
-  displayName: string;
-
-  /**
-   * @generated from field: meridian.theme.v1.Palette light = 3;
-   */
-  light?: Palette | undefined;
-
-  /**
-   * @generated from field: meridian.theme.v1.Palette dark = 4;
-   */
-  dark?: Palette | undefined;
-
-  /**
-   * @generated from field: meridian.theme.v1.Typography typography = 5;
-   */
-  typography?: Typography | undefined;
-
-  /**
-   * @generated from field: meridian.theme.v1.Metrics metrics = 6;
-   */
-  metrics?: Metrics | undefined;
-};
-
-/**
- * @generated from message meridian.theme.v1.Theme
- */
-export type ThemeJson = {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id?: string;
-
-  /**
-   * @generated from field: string display_name = 2;
-   */
-  displayName?: string;
-
-  /**
-   * @generated from field: meridian.theme.v1.Palette light = 3;
-   */
-  light?: PaletteJson;
-
-  /**
-   * @generated from field: meridian.theme.v1.Palette dark = 4;
-   */
-  dark?: PaletteJson;
-
-  /**
-   * @generated from field: meridian.theme.v1.Typography typography = 5;
-   */
-  typography?: TypographyJson;
-
-  /**
-   * @generated from field: meridian.theme.v1.Metrics metrics = 6;
-   */
-  metrics?: MetricsJson;
-};
-
-/**
- * Describes the message meridian.theme.v1.Theme.
- * Use `create(ThemeSchema)` to create a new message.
- */
-export const ThemeSchema: GenMessage<Theme, {jsonType: ThemeJson}> = /*@__PURE__*/
   messageDesc(file_proto_theme, 4);
 
