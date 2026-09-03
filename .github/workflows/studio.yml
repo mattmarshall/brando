@@ -39,9 +39,8 @@ jobs:
       # studio's specialist directory against `agent/subagents/`.
       - run: node --import tsx --test tests/contract.test.ts tests/roster.test.ts
 
-      # The rest DO need one, because a mocked transport would prove only that
-      # the mock works. Bazel builds and runs the real service, and the studio
-      # talks to it exactly as it would in production.
+      # The rest DO need a live service, because a mocked transport would prove
+      # only that the mock works. They run TWICE below, once per wire.
       #
       # `npm test` rather than a list of files. Naming them was how
       # `tests/proto-json.test.ts` — the regression gate for a conversion bug
@@ -51,6 +50,11 @@ jobs:
         with:
           bazelisk-cache: true
           repository-cache: true
+      # For the Connect run below, which serves the door from this checkout
+      # rather than through Bazel — the same interpreter the deployment uses.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       # BUILD FIRST, THEN RUN. `bazel run` builds before it serves, and on a
       # cold cache that build compiles protobuf and gRPC from source — five
       # minutes of it. The wait loop below then spent its whole 60 seconds
@@ -63,7 +67,19 @@ jobs:
         working-directory: .
         run: bazel build //service:server
 
-      - name: serve brando, then round-trip the client against it
+      # BOTH WIRES, BECAUSE THE CLIENT CLAIMS BOTH.
+      #
+      # `agent/lib/brando/client.ts` says two transports, one service, and the
+      # callers do not know the difference. Only one of them was ever run here,
+      # and after the Connect door landed it was the WRONG one: the default
+      # transport became Connect over HTTP/1.1 while this job kept serving gRPC,
+      # so every test failed with `Parse Error: Expected HTTP/, RTSP/ or ICE/` —
+      # an HTTP/2 SETTINGS frame arriving at an HTTP/1.1 parser. CI had been
+      # proving a wire the deployment does not use.
+      #
+      # So: gRPC against the Bazel server, then Connect against the door, which
+      # is what a Vercel deployment actually speaks.
+      - name: gRPC — the wire //service:conformance_test holds the service to
         working-directory: .
         run: |
           set -eux
@@ -77,7 +93,22 @@ jobs:
           (echo > /dev/tcp/127.0.0.1/50051) 2>/dev/null \
             || { echo "the service never bound :50051"; exit 1; }
           cd studio
-          BRANDO_SERVICE_URL=http://localhost:50051 npm test
+          BRANDO_SERVICE_URL=http://localhost:50051 BRANDO_TRANSPORT=grpc npm test
+
+      - name: Connect — the wire the deployment speaks
+        working-directory: .
+        run: |
+          set -eux
+          pip install -r requirements.txt
+          PYTHONPATH="$PWD:$PWD/gen" python -m service.connect_app --port 8787 &
+          for _ in $(seq 1 30); do
+            (echo > /dev/tcp/127.0.0.1/8787) 2>/dev/null && break
+            sleep 1
+          done
+          (echo > /dev/tcp/127.0.0.1/8787) 2>/dev/null \
+            || { echo "the Connect door never bound :8787"; exit 1; }
+          cd studio
+          BRANDO_SERVICE_URL=http://localhost:8787 npm test
 
       # The eve app has to actually compile: `eve build` is what discovers the
       # agent tree, so a subagent with no description or a tool whose filename
