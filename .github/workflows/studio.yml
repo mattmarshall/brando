@@ -17,9 +17,13 @@ concurrency:
   group: studio-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-defaults:
-  run:
-    working-directory: studio
+# NO `defaults.run.working-directory`. It used to be `studio`, which is right
+# for the npm steps and wrong for every Bazel and Python one — and this file is
+# mostly the latter. It silently ran `python service/gen_stubs.py` and
+# `pip install -r requirements.txt` from inside studio/, twice, in two different
+# jobs, each time failing with a "No such file" that named the wrong problem.
+# A default that is correct for a minority of steps is a trap, so each step now
+# says where it runs.
 
 jobs:
   check:
@@ -32,12 +36,15 @@ jobs:
           cache: npm
           cache-dependency-path: studio/package-lock.json
       - run: npm ci
+        working-directory: studio
       - run: npm run typecheck
+        working-directory: studio
 
       # The two suites that need no service: the contract tests hold the zod
       # schemas against the generated descriptors, and the roster test holds the
       # studio's specialist directory against `agent/subagents/`.
       - run: node --import tsx --test tests/contract.test.ts tests/roster.test.ts
+        working-directory: studio
 
       # The rest DO need a live service, because a mocked transport would prove
       # only that the mock works. They run TWICE below, once per wire.
@@ -64,7 +71,6 @@ jobs:
       # Splitting the build out also puts a build failure in a step that says
       # "build", instead of surfacing as a connection error two steps later.
       - name: build the service before waiting on it
-        working-directory: .
         run: bazel build //service:server
 
       # BOTH WIRES, BECAUSE THE CLIENT CLAIMS BOTH.
@@ -80,7 +86,6 @@ jobs:
       # So: gRPC against the Bazel server, then Connect against the door, which
       # is what a Vercel deployment actually speaks.
       - name: gRPC — the wire //service:conformance_test holds the service to
-        working-directory: .
         run: |
           set -eux
           bazel run //service:server -- --port 50051 &
@@ -96,7 +101,6 @@ jobs:
           BRANDO_SERVICE_URL=http://localhost:50051 BRANDO_TRANSPORT=grpc npm test
 
       - name: Connect — the wire the deployment speaks
-        working-directory: .
         run: |
           set -eux
           pip install -r requirements.txt
@@ -114,6 +118,7 @@ jobs:
       # agent tree, so a subagent with no description or a tool whose filename
       # is not a legal slug fails here rather than at the first request.
       - run: npx eve build
+        working-directory: studio
 
       # THE NEXT BUILD, ON THE BRANCH VERCEL ACTUALLY TAKES.
       #
@@ -129,7 +134,6 @@ jobs:
       # It holds no real ids and is deleted immediately; it exists only to make
       # `findClosestLinkedVercelDirectory` resolve to the repo root.
       - name: build Next.js the way Vercel will, with a linked project above it
-        working-directory: .
         run: |
           set -eux
           trap 'rm -rf .vercel' EXIT
@@ -155,8 +159,8 @@ jobs:
           bazelisk-cache: true
           repository-cache: true
       - run: npm ci
+        working-directory: studio
       - name: regenerate from the descriptor set the linter checked
-        working-directory: .
         run: |
           set -eux
           bazel build //proto/brando/v1:brand_service_descriptor_set
@@ -166,6 +170,7 @@ jobs:
           npx buf generate .image.binpb
           rm .image.binpb
       - run: git diff --exit-code agent/lib/brando/gen
+        working-directory: studio
 
   # The VENDORED PYTHON STUBS, regenerated and diffed.
   #
@@ -186,11 +191,6 @@ jobs:
           python-version: "3.12"
       - run: pip install grpcio-tools protobuf
       - name: regenerate from the descriptor set the linter checked
-        # `defaults.run.working-directory` is `studio` for this whole file, which
-        # is right for every npm step and wrong for every Bazel one — without
-        # this the job ran `python service/gen_stubs.py` from inside studio/ and
-        # died on "No such file or directory".
-        working-directory: .
         run: |
           set -eux
           bazel build //proto/brando/v1:brand_service_descriptor_set
@@ -199,9 +199,7 @@ jobs:
               --descriptor_set bazel-bin/proto/brando/v1/brand_service_descriptor_set.binpb \
               --out_dir gen --proto "$proto"
           done
-      - name: the vendored stubs match the schema
-        working-directory: .
-        run: git diff --exit-code gen
+      - run: git diff --exit-code gen
 
       # The deployed entrypoint must import with no Bazel and no runfiles — which
       # is the whole point of vendoring, and the thing that breaks first.
