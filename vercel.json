@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-
+  "framework": "services",
   "services": {
     "studio": {
       "root": "studio",
@@ -14,7 +14,6 @@
         }
       ]
     },
-
     "eve": {
       "root": "studio",
       "framework": "eve",
@@ -28,7 +27,6 @@
         }
       ]
     },
-
     "brando": {
       "root": ".",
       "runtime": "python3.12",
@@ -39,9 +37,18 @@
       }
     }
   },
-
   "rewrites": [
-    { "source": "/eve/v1/(.*)", "destination": { "service": "eve" } },
-    { "source": "/(.*)", "destination": { "service": "studio" } }
+    {
+      "source": "/eve/v1/(.*)",
+      "destination": {
+        "service": "eve"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "studio"
+      }
+    }
   ]
 }
