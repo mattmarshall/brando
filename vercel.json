@@ -28,7 +28,7 @@
     },
     "brando": {
       "root": ".",
-      "runtime": "python3.12",
+      "framework": "python",
       "functions": {
         "wsgi.py": {
           "excludeFiles": "studio/**"
