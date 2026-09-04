@@ -40,10 +40,11 @@ jobs:
       - run: npm run typecheck
         working-directory: studio
 
-      # The two suites that need no service: the contract tests hold the zod
-      # schemas against the generated descriptors, and the roster test holds the
-      # studio's specialist directory against `agent/subagents/`.
-      - run: node --import tsx --test tests/contract.test.ts tests/roster.test.ts
+      # The suites that need no service: the contract tests hold the zod schemas
+      # against the generated descriptors, the roster test holds the studio's
+      # specialist directory against `agent/subagents/`, and the allowed-hosts
+      # test holds the rule deciding which hosts may mint a session.
+      - run: node --import tsx --test tests/contract.test.ts tests/roster.test.ts tests/allowed-hosts.test.ts
         working-directory: studio
 
       # The rest DO need a live service, because a mocked transport would prove

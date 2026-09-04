@@ -34,15 +34,48 @@ function required(name: string): string {
 }
 
 /**
+ * A host as Better Auth wants it: no scheme, no path, no trailing slash.
+ *
+ * The `VERCEL_*` variables are already bare hosts, but `STUDIO_PUBLIC_HOST` is
+ * typed by a human who has just been looking at a URL bar, so `https://` and a
+ * trailing slash are the two things they will paste. Both would silently fail to
+ * match the Host header and produce a sign-in error naming a host that looks
+ * correct — so they are trimmed here rather than diagnosed later.
+ */
+function bareHost(value: string): string {
+  return value.trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/\/.*$/, "");
+}
+
+/**
  * Every host this deployment answers on.
  *
  * Preview URLs are per-deployment and per-branch, so a hardcoded base URL is
  * wrong on every preview — which is exactly where you most want to sign in and
  * try something.
+ *
+ * EXPORTED FOR ITS TEST, which is not a habit but is right here: this list is
+ * the rule deciding which hosts may mint a session, and Better Auth derives
+ * `redirect_uri` per request from the Host header and validates it against
+ * exactly this. Getting it wrong is either a sign-in that fails on the published
+ * URL or a redirect somebody else can claim, and neither is visible from the
+ * outside until it happens.
+ *
+ * `STUDIO_PUBLIC_HOST` exists because the `VERCEL_*` variables cover a custom
+ * domain only when it is the PRODUCTION domain — `VERCEL_PROJECT_PRODUCTION_URL`
+ * is documented as "the shortest production custom domain … always set, even in
+ * preview deployments". A domain attached to a preview branch appears in none of
+ * the three, and sign-in on it fails with `Host … is not in the allowed hosts
+ * list`. Naming the host explicitly makes both arrangements work, so which one
+ * is chosen stops being a thing anybody has to know.
  */
-function allowedHosts(): string[] {
+export function allowedHosts(): string[] {
   if (process.env.NODE_ENV === "development") return ["localhost:*", "127.0.0.1:*"];
+  const configured = (process.env.STUDIO_PUBLIC_HOST ?? "")
+    .split(/[,\s]+/)
+    .filter(Boolean)
+    .map(bareHost);
   const hosts = [
+    ...configured,
     process.env.VERCEL_PROJECT_PRODUCTION_URL,
     process.env.VERCEL_BRANCH_URL,
     process.env.VERCEL_URL,
