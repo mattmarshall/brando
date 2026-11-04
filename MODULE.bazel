@@ -71,7 +71,7 @@ bazel_dep(name = "rules_proto", version = "7.1.0")
 # >= 0.3.0 takes protoc from the proto toolchain rather than naming
 # @protobuf//:protoc directly, which is what keeps a C++ toolchain out of repos
 # that have no C++ in them.
-bazel_dep(name = "rules_aip", version = "0.3.0")
+bazel_dep(name = "rules_aip", version = "0.3.1")
 
 # The google.api.* annotation protos aip_proto_library bundles. Via bazel_dep, so
 # nothing is vendored into the graph — the same pin governor and meridian-k8s use.
